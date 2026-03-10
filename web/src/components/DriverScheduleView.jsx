@@ -24,7 +24,7 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
     const fetchDrivers = async () => {
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/drivers`,
+          `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/drivers`,
         );
         if (!response.ok) {
           throw new Error("Falha ao carregar motoristas");
@@ -75,7 +75,7 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips?driverId=${id}`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips?driverId=${id}`,
       );
       if (!response.ok) {
         throw new Error("Falha ao carregar viagens do motorista");
@@ -91,7 +91,7 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
   const handleUpdateArrival = async (id) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips/${id}/arrival`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${id}/arrival`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -117,7 +117,7 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
   const handleTripAction = async (tripId, action) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips/${tripId}/${action}`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${tripId}/${action}`,
         { method: "POST" },
       );
       if (!response.ok) throw new Error("Falha ao registrar ação");
@@ -135,7 +135,7 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
   const handleStartTrip = async (tripId) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips/${tripId}`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${tripId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -159,7 +159,7 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
       const isClearing = trip.status === "FALTA";
       const endpoint = isClearing ? "no-show/clear" : "no-show";
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips/${trip.id}/${endpoint}`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${trip.id}/${endpoint}`,
         { method: "POST" },
       );
       if (!response.ok) {

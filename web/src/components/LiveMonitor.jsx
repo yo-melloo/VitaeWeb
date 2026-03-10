@@ -69,13 +69,13 @@ const LiveMonitor = ({ onNavigate, isOperator }) => {
       try {
         const [tripsRes, driversRes, vehiclesRes] = await Promise.all([
           fetch(
-            `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips`,
+            `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips`,
           ),
           fetch(
-            `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/drivers`,
+            `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/drivers`,
           ),
           fetch(
-            `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/vehicles`,
+            `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/vehicles`,
           ),
         ]);
 

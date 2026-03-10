@@ -11,7 +11,7 @@ const formatDate = (dateString) => {
   });
 };
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const STATUS_LABELS = {
   SCHEDULED: {

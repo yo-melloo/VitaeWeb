@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import ServiceSegments from "./ServiceSegments";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const DAYS_OF_WEEK = [
   { key: "MONDAY", label: "SEG" },

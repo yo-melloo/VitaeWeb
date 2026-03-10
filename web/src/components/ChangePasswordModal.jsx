@@ -24,7 +24,7 @@ const ChangePasswordModal = ({ user, onClose, onNotify }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/users/${user.id}/password`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/users/${user.id}/password`,
         {
           method: "PUT",
           headers: { "Content-Type": "text/plain" },

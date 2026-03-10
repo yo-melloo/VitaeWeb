@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const VehicleFormModal = ({ vehicle, onClose, onSave, onNotify }) => {
   const [plate, setPlate] = useState(vehicle ? vehicle.plate : "");

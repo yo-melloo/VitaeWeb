@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import VehicleFormModal from "./VehicleFormModal";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const VehicleManagement = ({ onNotify }) => {
   const [vehicles, setVehicles] = useState([]);

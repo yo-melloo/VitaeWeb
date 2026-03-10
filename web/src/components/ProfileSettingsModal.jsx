@@ -17,7 +17,7 @@ const ProfileSettingsModal = ({ user, onClose, onUpdate, onNotify }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/users/${user.id}/profile-name`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/users/${user.id}/profile-name`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

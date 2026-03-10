@@ -25,8 +25,8 @@ const UserFormModal = ({ user, onCancel, onSave, onNotify }) => {
     setSaving(true);
     try {
       const url = user
-        ? `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/users/${user.id}`
-        : `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/users`;
+        ? `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/users/${user.id}`
+        : `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/users`;
 
       const res = await fetch(url, {
         method: user ? "PUT" : "POST",

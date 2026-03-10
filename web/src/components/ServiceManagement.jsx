@@ -11,7 +11,7 @@ const ServiceManagement = ({ onNotify }) => {
   const fetchServices = useCallback(async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/services`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/services`,
       );
       if (!response.ok) {
         throw new Error("Falha ao carregar serviços");
@@ -39,7 +39,7 @@ const ServiceManagement = ({ onNotify }) => {
     if (!window.confirm("Tem certeza que deseja remover este serviço?")) return;
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/services/${id}`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/services/${id}`,
         {
           method: "DELETE",
         },
@@ -55,7 +55,7 @@ const ServiceManagement = ({ onNotify }) => {
   const handleBatchGenerate = async (data) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/batch-schedules/generate`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/batch-schedules/generate`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

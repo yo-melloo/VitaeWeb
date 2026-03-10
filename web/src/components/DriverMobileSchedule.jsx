@@ -10,7 +10,7 @@ const DriverMobileSchedule = ({ user, onNotify }) => {
       setLoading(true);
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips?matricula=${user.matricula}`,
+          `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips?matricula=${user.matricula}`,
         );
         if (!res.ok) throw new Error("Falha ao carregar escalas");
         const data = await res.json();

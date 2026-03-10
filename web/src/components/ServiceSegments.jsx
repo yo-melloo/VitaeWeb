@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const ServiceSegments = ({ serviceId, onNotify }) => {
   const [segments, setSegments] = useState([]);

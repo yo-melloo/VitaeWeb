@@ -24,7 +24,7 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
   const fetchDrivers = useCallback(async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/drivers`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/drivers`,
       );
       if (!response.ok) {
         throw new Error("Falha ao carregar motoristas");
@@ -121,7 +121,7 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
       const payload = { ...driver, status: nextStatus };
       delete payload.baseName;
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/drivers/${driver.id}`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/drivers/${driver.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -144,7 +144,7 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
   const handleDeleteDriver = async (id) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/drivers/${id}`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/drivers/${id}`,
         { method: "DELETE" },
       );
       if (!res.ok) throw new Error("Erro ao remover motorista");

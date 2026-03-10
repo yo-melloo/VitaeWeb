@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const DriverFormModal = ({ driver, onClose, onSave, onNotify }) => {
   const [name, setName] = useState(driver ? driver.name : "");

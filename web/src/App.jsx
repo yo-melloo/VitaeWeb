@@ -350,7 +350,7 @@ const Dashboard = ({
     const fetchTrips = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips`,
+          `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips`,
         );
         if (!res.ok) {
           throw new Error("Erro ao carregar viagens");
@@ -437,7 +437,7 @@ const Dashboard = ({
   const handleDelay = async (id) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips/${id}/delay`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${id}/delay`,
         {
           method: "POST",
         },
@@ -455,7 +455,7 @@ const Dashboard = ({
   const handleClearDelay = async (id) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/trips/${id}/delay/clear`,
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${id}/delay/clear`,
         { method: "POST" },
       );
       if (res.ok) {
