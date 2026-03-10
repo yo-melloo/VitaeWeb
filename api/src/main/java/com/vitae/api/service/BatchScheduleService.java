@@ -1,0 +1,77 @@
+package com.vitae.api.service;
+
+import com.vitae.api.dto.BatchScheduleRequest;
+import com.vitae.api.model.*;
+import com.vitae.api.repository.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class BatchScheduleService {
+
+    @Autowired
+    private ServiceRepository serviceRepository;
+
+    @Autowired
+    private SegmentRepository segmentRepository;
+
+    @Autowired
+    private TripService tripService;
+
+    @Autowired
+    private CirandaService cirandaService;
+
+    @Transactional
+    public List<Trip> generateBatch(BatchScheduleRequest request) {
+        com.vitae.api.model.Service service = serviceRepository.findById(request.getServiceId())
+                .orElseThrow(() -> new RuntimeException("Service not found"));
+
+        List<Segment> segments = segmentRepository.findByServiceIdOrderBySequenceAsc(request.getServiceId());
+        List<Trip> generatedTrips = new ArrayList<>();
+
+        LocalDate current = request.getStartDate();
+        if (request.getEndDate().isAfter(current.plusDays(14))) {
+            throw new RuntimeException("Geração limitada ao máximo de 14 dias por vez para segurança operacional.");
+        }
+
+        while (!current.isAfter(request.getEndDate())) {
+            if (service.getOperationalDays().contains(current.getDayOfWeek())) {
+                LocalDateTime departureTime = current.atTime(request.getDefaultDepartureTime());
+
+                for (Segment segment : segments) {
+                    Driver autoDriver = cirandaService.suggestNextDriver(segment.getOrigin(), departureTime);
+                    int duration = (segment.getEstimatedDurationMinutes() != null)
+                            ? segment.getEstimatedDurationMinutes()
+                            : 60;
+
+                    Trip trip = Trip.builder()
+                            .segment(segment)
+                            .serviceId(segment.getService().getId())
+                            .driver(autoDriver)
+                            .departureTime(departureTime)
+                            .arrivalTime(departureTime.plusMinutes(duration))
+                            .status(TripStatus.SCHEDULED)
+                            .build();
+
+                    // Use TripService to apply business rules (Dobra, Rest)
+                    Trip savedTrip = tripService.createTrip(trip);
+                    generatedTrips.add(savedTrip);
+
+                    // Set next departure time for subsequent segment in sequence
+                    LocalDateTime arrivalTimeForBuffer = savedTrip.getArrivalTime() != null ? savedTrip.getArrivalTime()
+                            : departureTime.plusMinutes(duration);
+                    departureTime = arrivalTimeForBuffer.plusMinutes(30); // 30 min buffer
+                }
+            }
+            current = current.plusDays(1);
+        }
+
+        return generatedTrips;
+    }
+}
