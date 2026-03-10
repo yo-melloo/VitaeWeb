@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: vitae-db
     environment:
       POSTGRES_DB: vitae_db
@@ -15,6 +15,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 200M
 
   api-dev:
     build:
@@ -42,16 +46,20 @@ services:
       context: ./api
       dockerfile: Dockerfile
     container_name: vitae-api-prod
-    ports:
-      - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/vitae_db
       SPRING_DATASOURCE_USERNAME: user
       SPRING_DATASOURCE_PASSWORD: password
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_FLYWAY_ENABLED: "true"
+      JAVA_OPTS: "-Xmx256m -Xms128m"
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 400M
     profiles:
       - prod
 
@@ -78,11 +86,17 @@ services:
       context: ./web
       dockerfile: Dockerfile
       target: prod
+      args:
+        - VITE_API_URL=
     container_name: vitae-web-prod
     ports:
       - "80:80"
     depends_on:
       - api-prod
+    deploy:
+      resources:
+        limits:
+          memory: 50M
     profiles:
       - prod
 
