@@ -1,0 +1,90 @@
+services:
+  db:
+    image: postgres:15
+    container_name: vitae-db
+    environment:
+      POSTGRES_DB: vitae_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d vitae_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api-dev:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: vitae-api-dev
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/vitae_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    volumes:
+      - ./api/src:/app/src
+      - ./api/pom.xml:/app/pom.xml
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - dev
+
+  api-prod:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: vitae-api-prod
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/vitae_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - prod
+
+  web-dev:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      target: dev
+    container_name: vitae-web-dev
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    depends_on:
+      - api-dev
+    profiles:
+      - dev
+
+  web-prod:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      target: prod
+    container_name: vitae-web-prod
+    ports:
+      - "80:80"
+    depends_on:
+      - api-prod
+    profiles:
+      - prod
+
+volumes:
+  postgres_data:
