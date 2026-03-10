@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-200: #bae6fd;
+  --color-primary-300: #7dd3fc;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
+  --color-primary-800: #075985;
+  --color-primary-900: #0c4a6e;
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #0f172a;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+  @apply bg-slate-900 text-slate-100;
+}
+
+/* Global interactive element cursor */
+button,
+[role="button"],
+a,
+label[for],
+select,
+.cursor-pointer {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+@media print {
+  @page {
+    margin: 1cm;
+    size: auto;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide navigation and UI controls */
+  nav,
+  header .bg-sky-500,
+  .no-print,
+  button,
+  .w-64 {
+    display: none !important;
+  }
+
+  /* Expand main content */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    position: static !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure tables look good */
+  .bg-slate-800 {
+    background: white !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  .text-slate-100 {
+    color: black !important;
+  }
+  .text-slate-200 {
+    color: #1e293b !important;
+  }
+  .text-slate-300 {
+    color: #334155 !important;
+  }
+  .text-slate-400 {
+    color: #475569 !important;
+  }
+  .text-slate-500 {
+    color: #64748b !important;
+  }
+  .border-slate-700 {
+    border-color: #e2e8f0 !important;
+  }
+
+  .bg-slate-900,
+  .bg-slate-900\/50,
+  .bg-slate-900\/30 {
+    background: #f8fafc !important;
+  }
+
+  /* Force visibility for badges */
+  .border {
+    border-width: 1px !important;
+  }
+
+  /* Prevent page breaks inside cards */
+  .rounded-2xl {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
