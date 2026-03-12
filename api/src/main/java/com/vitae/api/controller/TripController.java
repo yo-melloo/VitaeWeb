@@ -1,7 +1,7 @@
 package com.vitae.api.controller;
 
+import com.vitae.api.dto.TripDTO;
 import com.vitae.api.model.Trip;
-
 import com.vitae.api.repository.DriverRepository;
 import com.vitae.api.repository.SegmentRepository;
 import com.vitae.api.repository.ServiceRepository;
@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.stream.Collectors;
 
 @RestController
@@ -38,7 +37,7 @@ public class TripController {
     private ServiceRepository serviceRepository;
 
     @GetMapping
-    public ResponseEntity<List<Map<String, Object>>> listTrips(
+    public ResponseEntity<List<TripDTO>> listTrips(
             @RequestParam(required = false) Long driverId,
             @RequestParam(required = false) String matricula) {
 
@@ -53,86 +52,40 @@ public class TripController {
             trips = tripService.listTrips();
         }
 
-        List<Map<String, Object>> response = trips.stream().map(trip -> {
-            Map<String, Object> dto = new HashMap<>();
-            dto.put("id", trip.getId());
-            dto.put("serviceId", trip.getServiceId());
-
-            if (trip.getServiceId() != null) {
-                serviceRepository.findById(trip.getServiceId()).ifPresent(srv -> {
-                    dto.put("serviceCode", srv.getCode());
-                    dto.put("routeName", srv.getName());
-                });
-            }
-
-            dto.put("status", trip.getStatus());
-            dto.put("isImpacted", trip.getIsImpacted());
-            dto.put("departureTime", trip.getDepartureTime());
-            dto.put("arrivalTime", trip.getArrivalTime());
-            dto.put("actualArrivalTime", trip.getActualArrivalTime());
-
-            if (trip.getSegment() != null) {
-                Map<String, Object> segmentDto = new HashMap<>();
-                segmentDto.put("origin", trip.getSegment().getOrigin());
-                segmentDto.put("destination", trip.getSegment().getDestination());
-                segmentDto.put("sequence", trip.getSegment().getSequence());
-
-                if (trip.getSegment().getService() != null) {
-                    com.vitae.api.model.Service srv = trip.getSegment().getService();
-                    dto.put("serviceCode", srv.getCode());
-                    dto.put("routeName", srv.getName());
-                    long total = segmentRepository.countByService(srv);
-                    segmentDto.put("totalSegments", total);
-                }
-
-                dto.put("segment", segmentDto);
-            }
-
-            if (trip.getDriver() != null) {
-                Map<String, Object> driver = new HashMap<>();
-                driver.put("id", trip.getDriver().getId());
-                driver.put("name", trip.getDriver().getName());
-                driver.put("matricula", trip.getDriver().getMatricula());
-                dto.put("driver", driver);
-            }
-
-            if (trip.getVehicle() != null) {
-                Map<String, Object> vehicle = new HashMap<>();
-                vehicle.put("id", trip.getVehicle().getId());
-                vehicle.put("plate", trip.getVehicle().getPlate());
-                vehicle.put("prefix", trip.getVehicle().getPrefix());
-                vehicle.put("model", trip.getVehicle().getModel());
-                dto.put("vehicle", vehicle);
-            }
-
-            return dto;
-        }).collect(Collectors.toList());
+        List<TripDTO> response = trips.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/delay")
-    public ResponseEntity<Trip> markDelayed(@PathVariable Long id) {
-        return ResponseEntity.ok(tripService.markDelayed(id));
+    public ResponseEntity<TripDTO> markDelayed(@PathVariable Long id) {
+        return ResponseEntity.ok(convertToDTO(tripService.markDelayed(id)));
     }
 
     @PostMapping("/{id}/delay/clear")
-    public ResponseEntity<Trip> clearDelay(@PathVariable Long id) {
-        return ResponseEntity.ok(tripService.clearDelay(id));
+    public ResponseEntity<TripDTO> clearDelay(@PathVariable Long id) {
+        return ResponseEntity.ok(convertToDTO(tripService.clearDelay(id)));
     }
 
     @PatchMapping("/{id}/arrival")
-    public ResponseEntity<Trip> updateArrivalTime(@PathVariable Long id, @RequestBody LocalDateTime actualArrival) {
-        return ResponseEntity.ok(tripService.updateArrivalTime(id, actualArrival));
+    public ResponseEntity<TripDTO> updateArrivalTime(@PathVariable Long id, @RequestBody LocalDateTime actualArrival) {
+        return ResponseEntity.ok(convertToDTO(tripService.updateArrivalTime(id, actualArrival)));
+    }
+
+    @PostMapping("/{id}/revert")
+    public ResponseEntity<TripDTO> revertTrip(@PathVariable Long id) {
+        return ResponseEntity.ok(convertToDTO(tripService.revertTrip(id)));
     }
 
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<Trip> cancelTrip(@PathVariable Long id) {
-        return ResponseEntity.ok(tripService.cancelTrip(id));
+    public ResponseEntity<TripDTO> cancelTrip(@PathVariable Long id) {
+        return ResponseEntity.ok(convertToDTO(tripService.cancelTrip(id)));
     }
 
     @PostMapping
-    public ResponseEntity<Trip> createTrip(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<TripDTO> createTrip(@RequestBody Map<String, Object> payload) {
         Trip trip = new Trip();
 
         if (payload.get("driverId") != null) {
@@ -170,21 +123,21 @@ public class TripController {
         }
         trip.setIsImpacted(false);
 
-        return ResponseEntity.ok(tripService.createTrip(trip));
+        return ResponseEntity.ok(convertToDTO(tripService.createTrip(trip)));
     }
 
     @PostMapping("/{id}/no-show")
-    public ResponseEntity<Trip> markNoShow(@PathVariable Long id) {
-        return ResponseEntity.ok(tripService.markNoShow(id));
+    public ResponseEntity<TripDTO> markNoShow(@PathVariable Long id) {
+        return ResponseEntity.ok(convertToDTO(tripService.markNoShow(id)));
     }
 
     @PostMapping("/{id}/no-show/clear")
-    public ResponseEntity<Trip> clearNoShow(@PathVariable Long id) {
-        return ResponseEntity.ok(tripService.clearNoShow(id));
+    public ResponseEntity<TripDTO> clearNoShow(@PathVariable Long id) {
+        return ResponseEntity.ok(convertToDTO(tripService.clearNoShow(id)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Trip> updateTrip(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<TripDTO> updateTrip(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         Trip tripUpdate = new Trip();
 
         if (payload.get("driverId") != null) {
@@ -220,12 +173,82 @@ public class TripController {
             tripUpdate.setStatus(com.vitae.api.model.TripStatus.valueOf(statusStr));
         }
 
-        return ResponseEntity.ok(tripService.updateTrip(id, tripUpdate));
+        return ResponseEntity.ok(convertToDTO(tripService.updateTrip(id, tripUpdate)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTrip(@PathVariable Long id) {
         tripService.deleteTrip(id);
         return ResponseEntity.noContent().build();
+    }
+
+    public TripDTO convertToDTO(Trip trip) {
+        if (trip == null)
+            return null;
+
+        TripDTO.TripDTOBuilder builder = TripDTO.builder()
+                .id(trip.getId())
+                .serviceId(trip.getServiceId())
+                .status(trip.getStatus())
+                .isImpacted(trip.getIsImpacted())
+                .departureTime(trip.getDepartureTime())
+                .arrivalTime(trip.getArrivalTime())
+                .actualArrivalTime(trip.getActualArrivalTime())
+                .updatedBy(trip.getUpdatedBy())
+                .updatedAt(trip.getUpdatedAt());
+
+        if (trip.getServiceId() != null) {
+            serviceRepository.findById(trip.getServiceId()).ifPresent(srv -> {
+                builder.serviceCode(srv.getCode());
+                builder.routeName(srv.getName());
+            });
+        }
+
+        if (trip.getSegment() != null) {
+            TripDTO.SegmentDTO.SegmentDTOBuilder segBuilder = TripDTO.SegmentDTO.builder()
+                    .id(trip.getSegment().getId())
+                    .origin(trip.getSegment().getOrigin())
+                    .destination(trip.getSegment().getDestination())
+                    .sequence(trip.getSegment().getSequence())
+                    .hasError(trip.getSegment().getHasError())
+                    .errorMessage(trip.getSegment().getErrorMessage())
+                    .errorReportedBy(trip.getSegment().getErrorReportedBy())
+                    .errorReportedAt(trip.getSegment().getErrorReportedAt());
+
+            if (trip.getSegment().getService() != null) {
+                com.vitae.api.model.Service srv = trip.getSegment().getService();
+                builder.serviceCode(srv.getCode());
+                builder.routeName(srv.getName());
+                segBuilder.totalSegments(segmentRepository.countByService(srv));
+            }
+
+            if (trip.getSegment().getBase() != null) {
+                segBuilder.base(TripDTO.BaseDTO.builder()
+                        .id(trip.getSegment().getBase().getId())
+                        .name(trip.getSegment().getBase().getName())
+                        .parentBaseId(trip.getSegment().getBase().getParentBaseId())
+                        .build());
+            }
+            builder.segment(segBuilder.build());
+        }
+
+        if (trip.getDriver() != null) {
+            builder.driver(TripDTO.DriverDTO.builder()
+                    .id(trip.getDriver().getId())
+                    .name(trip.getDriver().getName())
+                    .matricula(trip.getDriver().getMatricula())
+                    .build());
+        }
+
+        if (trip.getVehicle() != null) {
+            builder.vehicle(TripDTO.VehicleDTO.builder()
+                    .id(trip.getVehicle().getId())
+                    .plate(trip.getVehicle().getPlate())
+                    .prefix(trip.getVehicle().getPrefix())
+                    .model(trip.getVehicle().getModel())
+                    .build());
+        }
+
+        return builder.build();
     }
 }
