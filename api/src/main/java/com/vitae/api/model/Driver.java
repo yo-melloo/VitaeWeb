@@ -27,9 +27,9 @@ public class Driver extends BaseAuditEntity {
     private String name;
 
     @NotBlank
-    @Pattern(regexp = "\\d{4}")
+    @Pattern(regexp = "\\d{1,5}")
     @Column(unique = true, nullable = false)
-    private String matricula; // 4 digits
+    private String matricula; // Up to 5 digits
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
@@ -51,7 +51,7 @@ public class Driver extends BaseAuditEntity {
     }
 
     public enum DriverStatus {
-        DISPONIVEL, FOLGA, ESCALADO, FALTA, ATESTADO, AFASTADO, FERIAS,
+        DISPONIVEL, FOLGA, ESCALADO, FALTA, ATESTADO, AFASTADO, FERIAS, SOBRANDO,
         AVAILABLE, TRIP, RESTING, OFF, SICK, AWAY
     }
 }

@@ -88,13 +88,28 @@ public class DriverService {
     @Scheduled(fixedRate = 300000) // Every 5 minutes
     @Transactional
     public void processRestingDrivers() {
-        LocalDateTime threshold = LocalDateTime.now().minusHours(36);
+        LocalDateTime now = LocalDateTime.now();
+
+        // 1. FOLGA -> DISPONIVEL (36h rule)
+        LocalDateTime restingThreshold = now.minusHours(36);
         List<Driver> restingDrivers = driverRepository.findByStatus(DriverStatus.FOLGA);
 
         for (Driver driver : restingDrivers) {
-            if (driver.getLastStatusChange() != null && driver.getLastStatusChange().isBefore(threshold)) {
+            if (driver.getLastStatusChange() != null && driver.getLastStatusChange().isBefore(restingThreshold)) {
                 driver.setStatus(DriverStatus.DISPONIVEL);
-                driver.setLastStatusChange(LocalDateTime.now());
+                driver.setLastStatusChange(now);
+                driverRepository.save(driver);
+            }
+        }
+
+        // 2. DISPONIVEL -> SOBRANDO (48h rule)
+        LocalDateTime availableThreshold = now.minusHours(48);
+        List<Driver> availableDrivers = driverRepository.findByStatus(DriverStatus.DISPONIVEL);
+
+        for (Driver driver : availableDrivers) {
+            if (driver.getLastStatusChange() != null && driver.getLastStatusChange().isBefore(availableThreshold)) {
+                driver.setStatus(DriverStatus.SOBRANDO);
+                driver.setLastStatusChange(now);
                 driverRepository.save(driver);
             }
         }
