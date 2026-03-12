@@ -24,4 +24,14 @@ public class Base extends BaseAuditEntity {
     private String name;
 
     private String manager;
+
+    @Enumerated(EnumType.STRING)
+    private BaseType type;
+
+    @Column(name = "parent_base_id")
+    private Long parentBaseId;
+
+    public enum BaseType {
+        OPERACIONAL, PONTO_DE_APOIO
+    }
 }

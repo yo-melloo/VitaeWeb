@@ -1,7 +1,9 @@
 package com.vitae.api.controller;
 
 import com.vitae.api.model.User;
+
 import com.vitae.api.repository.UserRepository;
+import com.vitae.api.repository.DriverRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,14 +20,17 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private DriverRepository driverRepository;
+
     @GetMapping
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
     @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userRepository.save(user);
+    public ResponseEntity<User> createUser(@RequestBody User user) {
+        return ResponseEntity.ok(userRepository.save(user));
     }
 
     @PostMapping("/login")
@@ -56,6 +61,19 @@ public class UserController {
             }
             user.setProfile(userDetails.getProfile());
             user.setStatus(userDetails.getStatus());
+
+            // Auto-assign base for drivers if they are approved and don't have a base
+            // manually set
+            if (userDetails.getStatus() == User.UserStatus.APPROVED &&
+                    userDetails.getProfile() == User.UserProfile.DRIVER &&
+                    userDetails.getBase() == null) {
+                driverRepository.findByMatricula(user.getMatricula()).ifPresent(driver -> {
+                    user.setBase(driver.getBase());
+                });
+            } else {
+                user.setBase(userDetails.getBase());
+            }
+
             return ResponseEntity.ok(userRepository.save(user));
         }).orElse(ResponseEntity.notFound().build());
     }

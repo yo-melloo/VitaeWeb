@@ -35,6 +35,10 @@ public class User extends BaseAuditEntity {
     @Enumerated(EnumType.STRING)
     private UserProfile profile;
 
+    @ManyToOne
+    @JoinColumn(name = "base_id")
+    private Base base;
+
     public enum UserProfile {
         ADMIN, OPERATOR, VIEWER, DRIVER, PENDING
     }
