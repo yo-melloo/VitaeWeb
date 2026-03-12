@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -31,22 +32,26 @@ public class DataInitializer implements CommandLineRunner {
         @Override
         public void run(String... args) throws Exception {
                 if (userRepository.count() == 0) {
-                        seedUsers();
-                        Base goiania = seedBases();
+                        List<Base> bases = seedBases();
+                        Base goiania = bases.get(0);
+                        Base imperatriz = bases.get(2);
+
+                        seedUsers(goiania, imperatriz);
                         Service service2261 = seedServices();
                         seedDrivers(goiania);
                         seedVehicles();
-                        seedSegments(service2261);
+                        seedSegments(service2261, goiania, imperatriz);
                 }
         }
 
-        private void seedUsers() {
+        private void seedUsers(Base goiania, Base imperatriz) {
                 if (userRepository.findByMatricula("0001").isEmpty()) {
                         User admin = User.builder()
                                         .matricula("0001")
                                         .password("admin123")
                                         .fullName("System Admin")
                                         .profile(User.UserProfile.ADMIN)
+                                        .status(User.UserStatus.APPROVED)
                                         .build();
                         userRepository.save(admin);
                 }
@@ -55,30 +60,44 @@ public class DataInitializer implements CommandLineRunner {
                         User operator = User.builder()
                                         .matricula("0002")
                                         .password("op123")
-                                        .fullName("Operator User")
+                                        .fullName("Operator GYN")
                                         .profile(User.UserProfile.OPERATOR)
+                                        .base(goiania)
+                                        .status(User.UserStatus.APPROVED)
                                         .build();
                         userRepository.save(operator);
                 }
 
+                if (userRepository.findByMatricula("0003").isEmpty()) {
+                        User operatorIMP = User.builder()
+                                        .matricula("0003")
+                                        .password("imp123")
+                                        .fullName("Operator IMP")
+                                        .profile(User.UserProfile.OPERATOR)
+                                        .base(imperatriz)
+                                        .status(User.UserStatus.APPROVED)
+                                        .build();
+                        userRepository.save(operatorIMP);
+                }
+
                 if (userRepository.findByMatricula("1001").isEmpty()) {
                         User driver = User.builder()
-                                        .matricula("1001") // Linked to the seed driver matricula
+                                        .matricula("1001")
                                         .password("driver123")
-                                        .fullName("CARLOS ALBERTO") // Linked to the seed driver name
+                                        .fullName("CARLOS ALBERTO")
                                         .profile(User.UserProfile.DRIVER)
+                                        .base(goiania)
+                                        .status(User.UserStatus.APPROVED)
                                         .build();
                         userRepository.save(driver);
                 }
-
         }
 
-        private Base seedBases() {
+        private List<Base> seedBases() {
                 Base b1 = Base.builder().name("GOIÂNIA").manager("Ricardo").build();
                 Base b2 = Base.builder().name("SÃO LUÍS").manager("Ana").build();
                 Base b3 = Base.builder().name("IMPERATRIZ").manager("Marcos").build();
-                baseRepository.saveAll(Arrays.asList(b1, b2, b3));
-                return b1;
+                return baseRepository.saveAll(Arrays.asList(b1, b2, b3));
         }
 
         private Service seedServices() {
@@ -138,13 +157,14 @@ public class DataInitializer implements CommandLineRunner {
                 vehicleRepository.save(v1);
         }
 
-        private void seedSegments(Service service) {
+        private void seedSegments(Service service, Base goiania, Base imperatriz) {
                 Segment t1 = Segment.builder()
                                 .service(service)
                                 .origin("Imperatriz")
                                 .destination("Santa Inês")
                                 .estimatedDurationMinutes(180)
                                 .sequence(1)
+                                .base(imperatriz)
                                 .build();
                 Segment t2 = Segment.builder()
                                 .service(service)
@@ -152,6 +172,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .destination("São Luís")
                                 .estimatedDurationMinutes(240)
                                 .sequence(2)
+                                .base(goiania) // Simulating a GYN segment in the same service
                                 .build();
                 segmentRepository.saveAll(Arrays.asList(t1, t2));
         }
