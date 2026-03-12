@@ -16,6 +16,9 @@ public class SegmentController {
     @Autowired
     private SegmentRepository segmentRepository;
 
+    @Autowired
+    private com.vitae.api.repository.BaseRepository baseRepository;
+
     @GetMapping
     public List<Segment> getAllSegments() {
         return segmentRepository.findAll();
@@ -23,7 +26,7 @@ public class SegmentController {
 
     @GetMapping("/service/{serviceId}")
     public List<Segment> getSegmentsByService(@PathVariable Long serviceId) {
-        return segmentRepository.findByServiceIdOrderBySequenceAsc(serviceId);
+        return segmentRepository.findByService_IdOrderBySequenceAsc(serviceId);
     }
 
     @Autowired
@@ -36,7 +39,7 @@ public class SegmentController {
 
             if (segment.getSequence() != null) {
                 // Shift existing segments down to make room
-                List<Segment> existing = segmentRepository.findByServiceIdOrderBySequenceAsc(serviceId);
+                List<Segment> existing = segmentRepository.findByService_IdOrderBySequenceAsc(serviceId);
                 for (Segment s : existing) {
                     if (s.getSequence() >= segment.getSequence()) {
                         s.setSequence(s.getSequence() + 1);
@@ -44,8 +47,12 @@ public class SegmentController {
                     }
                 }
             } else {
-                long max = segmentRepository.findByServiceIdOrderBySequenceAsc(serviceId).size();
+                long max = segmentRepository.findByService_IdOrderBySequenceAsc(serviceId).size();
                 segment.setSequence((int) max + 1);
+            }
+
+            if (segment.getBase() != null && segment.getBase().getId() != null) {
+                baseRepository.findById(segment.getBase().getId()).ifPresent(segment::setBase);
             }
 
             Segment saved = segmentRepository.save(segment);
@@ -65,7 +72,7 @@ public class SegmentController {
                 int newSeq = segmentDetails.getSequence();
                 int oldSeq = segment.getSequence();
 
-                List<Segment> existing = segmentRepository.findByServiceIdOrderBySequenceAsc(serviceId);
+                List<Segment> existing = segmentRepository.findByService_IdOrderBySequenceAsc(serviceId);
                 for (Segment s : existing) {
                     if (s.getId().equals(id))
                         continue;
@@ -89,9 +96,52 @@ public class SegmentController {
             segment.setDestination(segmentDetails.getDestination());
             segment.setEstimatedDurationMinutes(segmentDetails.getEstimatedDurationMinutes());
 
+            if (segmentDetails.getBase() != null && segmentDetails.getBase().getId() != null) {
+                baseRepository.findById(segmentDetails.getBase().getId()).ifPresent(segment::setBase);
+            } else {
+                segment.setBase(null);
+            }
+
+            // Clear error if updated by authorized person
+            segment.setHasError(false);
+            segment.setErrorMessage(null);
+            segment.setErrorReportedBy(null);
+            segment.setErrorReportedAt(null);
+
             Segment saved = segmentRepository.save(segment);
             normalizeSequences(serviceId, null);
             return ResponseEntity.ok(saved);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    public record ErrorReportRequest(String message, String reportedBy) {
+    }
+
+    @PostMapping("/{id}/error")
+    public ResponseEntity<Segment> reportError(@PathVariable Long id, @RequestBody ErrorReportRequest body) {
+        return segmentRepository.findById(id).map(segment -> {
+            segment.setHasError(true);
+
+            String msg = body.message();
+            String reporter = body.reportedBy();
+
+            // Defensive check if body was improperly parsed as a single string containing
+            // JSON
+            if (msg != null && msg.trim().startsWith("{") && msg.contains("\"message\"")) {
+                try {
+                    com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper()
+                            .readTree(msg);
+                    msg = node.path("message").asText(msg);
+                    reporter = node.path("reportedBy").asText(reporter);
+                } catch (Exception e) {
+                    // Fallback to original
+                }
+            }
+
+            segment.setErrorMessage(msg);
+            segment.setErrorReportedBy(reporter);
+            segment.setErrorReportedAt(java.time.LocalDateTime.now());
+            return ResponseEntity.ok(segmentRepository.save(segment));
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -106,7 +156,7 @@ public class SegmentController {
     }
 
     private void normalizeSequences(Long serviceId, Long ignoreId) {
-        List<Segment> segments = segmentRepository.findByServiceIdOrderBySequenceAsc(serviceId);
+        List<Segment> segments = segmentRepository.findByService_IdOrderBySequenceAsc(serviceId);
         int seq = 1;
         for (Segment s : segments) {
             if (ignoreId != null && s.getId().equals(ignoreId))

@@ -8,7 +8,7 @@ import java.util.List;
 
 @Repository
 public interface SegmentRepository extends JpaRepository<Segment, Long> {
-    List<Segment> findByServiceIdOrderBySequenceAsc(Long serviceId);
+    List<Segment> findByService_IdOrderBySequenceAsc(Long serviceId);
 
     long countByService(com.vitae.api.model.Service service);
 }
