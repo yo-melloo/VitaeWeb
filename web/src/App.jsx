@@ -14,6 +14,9 @@ import ProfileSettingsModal from "./components/ProfileSettingsModal";
 import Notification from "./components/Notification";
 import Login from "./components/Login";
 import DriverMobileSchedule from "./components/DriverMobileSchedule";
+import BaseManagement from "./components/BaseManagement";
+
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 // Returns "Bom dia", "Boa tarde" or "Boa noite" based on current hour
 const getGreeting = () => {
@@ -94,6 +97,15 @@ const Sidebar = ({
               label="Rotas"
               active={activeTab === "routes"}
               onClick={() => handleNavClick("routes")}
+            />
+          )}
+
+          {isOperator && (
+            <NavItem
+              icon="🏠"
+              label="Bases"
+              active={activeTab === "bases"}
+              onClick={() => handleNavClick("bases")}
             />
           )}
 
@@ -326,6 +338,10 @@ const Dashboard = ({
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   const notify = onNotify;
+  const [errorModal, setErrorModal] = useState({
+    isOpen: false,
+    segment: null,
+  });
 
   useEffect(() => {
     const mapTripFromApi = (trip) => ({
@@ -339,19 +355,24 @@ const Dashboard = ({
         ? { id: trip.driver.id, name: trip.driver.name }
         : null,
       segment: trip.segment
-        ? { origin: trip.segment.origin, destination: trip.segment.destination }
+        ? {
+            id: trip.segment.id,
+            origin: trip.segment.origin,
+            destination: trip.segment.destination,
+            base: trip.segment.base,
+          }
         : {},
       departureTime: trip.departureTime,
       vehicle: trip.vehicle || null,
       status: trip.status,
       isImpacted: trip.isImpacted,
+      updatedBy: trip.updatedBy,
+      updatedAt: trip.updatedAt,
     });
 
     const fetchTrips = async () => {
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips`,
-        );
+        const res = await fetch(`${API}/api/trips`);
         if (!res.ok) {
           throw new Error("Erro ao carregar viagens");
         }
@@ -434,14 +455,33 @@ const Dashboard = ({
     notify("Cancelamento revertido e escala restaurada!");
   };
 
+  const handleReportError = async (segmentId) => {
+    if (!segmentId) return;
+    const msg = window.prompt("Descreva o erro encontrado no trecho:");
+    if (!msg) return;
+
+    try {
+      const res = await fetch(`${API}/api/segments/${segmentId}/error`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: msg,
+          reportedBy: user?.fullName || user?.matricula || "Desconhecido",
+        }),
+      });
+      if (!res.ok) throw new Error("Erro ao reportar problema");
+      notify("Erro reportado com sucesso. A base responsável será notificada.");
+      fetchTrips();
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  };
+
   const handleDelay = async (id) => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${id}/delay`,
-        {
-          method: "POST",
-        },
-      );
+      const res = await fetch(`${API}/api/trips/${id}/delay`, {
+        method: "POST",
+      });
       if (res.ok) {
         const updated = await res.json();
         setTrips(trips.map((t) => (t.id === id ? updated : t)));
@@ -454,10 +494,9 @@ const Dashboard = ({
 
   const handleClearDelay = async (id) => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${id}/delay/clear`,
-        { method: "POST" },
-      );
+      const res = await fetch(`${API}/api/trips/${id}/delay/clear`, {
+        method: "POST",
+      });
       if (res.ok) {
         const updated = await res.json();
         setTrips(trips.map((t) => (t.id === id ? updated : t)));
@@ -470,7 +509,7 @@ const Dashboard = ({
 
   return (
     <div className="space-y-10">
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-100">
             {getGreeting()}, {getFirstName(user?.fullName)}! 👋
@@ -543,6 +582,11 @@ const Dashboard = ({
                         origin: org,
                         destination: dst,
                       })
+                    }
+                    user={user}
+                    onReportError={() => handleReportError(trip.segment?.id)}
+                    onShowErrorDetails={(seg) =>
+                      setErrorModal({ isOpen: true, segment: seg })
                     }
                   />
                 ))
@@ -629,6 +673,77 @@ const Dashboard = ({
         origin={mapData.origin}
         destination={mapData.destination}
       />
+      {errorModal.isOpen && (
+        <ErrorDetailModal
+          segment={errorModal.segment}
+          onClose={() => setErrorModal({ isOpen: false, segment: null })}
+        />
+      )}
+    </div>
+  );
+};
+
+const ErrorDetailModal = ({ segment, onClose }) => {
+  if (!segment) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-slate-900 border border-rose-500/30 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="bg-rose-500/10 p-6 flex items-center gap-4 border-b border-rose-500/20">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/20 flex items-center justify-center text-2xl shadow-inner">
+            🚩
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-rose-400 uppercase tracking-tighter">
+              Problema Identificado
+            </h3>
+            <p className="text-xs text-rose-300/60 font-medium">
+              Relatado no trecho {segment.origin} → {segment.destination}
+            </p>
+          </div>
+        </div>
+
+        <div className="p-8 space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+              Descrição do Erro
+            </label>
+            <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800 text-slate-200 text-sm leading-relaxed italic">
+              "{segment.errorMessage}"
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+                Reportado Por
+              </label>
+              <p className="text-slate-300 font-bold px-1">
+                {segment.errorReportedBy || "Desconhecido"}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+                Data do Reporte
+              </label>
+              <p className="text-slate-400 text-xs px-1">
+                {segment.errorReportedAt
+                  ? new Date(segment.errorReportedAt).toLocaleString("pt-BR")
+                  : "—"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-950/30 p-4 border-t border-slate-800 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all active:scale-95"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -660,6 +775,8 @@ const App = () => {
       return null;
     }
   });
+
+  const [editingUser, setEditingUser] = useState(null);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -697,6 +814,35 @@ const App = () => {
     } catch {}
   }, [activeTab, selectedDriverId]);
 
+  // Refresh user session data from server to ensure latest base/role info
+  useEffect(() => {
+    const refreshUser = async () => {
+      if (!user?.id) return;
+      try {
+        const res = await fetch(`${API}/api/users/${user.id}`);
+        if (res.ok) {
+          const latestUser = await res.json();
+          // Only update if something changed (to avoid infinite loops or unnecessary renders)
+          if (
+            JSON.stringify(latestUser.base) !== JSON.stringify(user.base) ||
+            latestUser.profile !== user.profile
+          ) {
+            console.log("Session refreshed with latest data from server");
+            setUser({
+              ...latestUser,
+              role: latestUser.profile || "VIEWER",
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to refresh user session:", err);
+      }
+    };
+
+    // Refresh once on mount if user is logged in
+    refreshUser();
+  }, []);
+
   if (!user) {
     return (
       <>
@@ -723,7 +869,11 @@ const App = () => {
     );
   }
 
-  const isOperator = user.role === "OPERATOR" || user.role === "ADMIN";
+  const isOperator =
+    user.role === "OPERATOR" ||
+    user.role === "ADMIN" ||
+    user.profile === "OPERATOR" ||
+    user.profile === "ADMIN";
 
   const handleNavigate = (tab) => setActiveTab(tab);
 
@@ -731,21 +881,6 @@ const App = () => {
     setSelectedDriverId(driverId);
     setActiveTab("reports");
   };
-
-  if (user.role === "DRIVER" && isMobile) {
-    return (
-      <div className="min-h-screen bg-slate-900">
-        <DriverMobileSchedule user={user} onNotify={notify} />
-        {notification && (
-          <Notification
-            message={notification.message}
-            type={notification.type}
-            onClose={() => setNotification(null)}
-          />
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-screen w-screen bg-slate-900 text-slate-100 overflow-hidden">
@@ -759,6 +894,7 @@ const App = () => {
         onLogout={() => {
           setUser(null);
           setActiveTab("dashboard");
+          window.localStorage.removeItem("vitae:schedule:filters");
         }}
         onChangePassword={() => setPasswordModalOpen(true)}
         onOpenSettings={() => setProfileModalOpen(true)}
@@ -769,12 +905,9 @@ const App = () => {
       <main className="flex-1 overflow-y-auto w-full relative h-full flex flex-col">
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between bg-slate-800 p-4 border-b border-slate-700 w-full mb-4">
-          <span className="font-bold text-slate-100 flex items-center gap-2">
-            <span className="text-sky-400">❖</span> Vitae Web
-          </span>
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="text-slate-200 hover:text-sky-400 p-2 -mr-2"
+            className="text-slate-200 hover:text-sky-400 p-2 -ml-2"
           >
             <svg
               className="w-6 h-6"
@@ -790,6 +923,9 @@ const App = () => {
               />
             </svg>
           </button>
+          <span className="font-bold text-slate-100 flex items-center gap-2">
+            Vitae Web <span className="text-sky-400">❖</span>
+          </span>
         </div>
 
         <div className="p-4 md:p-8 pt-0 md:pt-8 w-full flex-1">
@@ -812,17 +948,26 @@ const App = () => {
               />
             </div>
           )}
-          {activeTab === "profiles" && user.role === "ADMIN" && (
-            <UserManagement onNotify={notify} />
-          )}
-          {activeTab === "reports" && (
-            <DriverScheduleView
-              isDriver={user.role === "DRIVER"}
-              user={user}
-              initialDriverId={selectedDriverId}
+          {activeTab === "profiles" && isOperator && (
+            <UserManagement
               onNotify={notify}
+              currentUser={user}
+              setUser={setUser}
+              initialEditingUser={editingUser}
+              onCloseEdit={() => setEditingUser(null)}
             />
           )}
+          {activeTab === "reports" &&
+            (user.role === "DRIVER" && isMobile ? (
+              <DriverMobileSchedule user={user} onNotify={notify} />
+            ) : (
+              <DriverScheduleView
+                isDriver={user.role === "DRIVER"}
+                user={user}
+                initialDriverId={selectedDriverId}
+                onNotify={notify}
+              />
+            ))}
           {activeTab === "drivers" && isOperator && (
             <DriverManagement
               onNotify={notify}
@@ -833,11 +978,21 @@ const App = () => {
             <VehicleManagement onNotify={notify} />
           )}
           {activeTab === "routes" && isOperator && (
-            <ServiceManagement onNotify={notify} />
+            <ServiceManagement onNotify={notify} user={user} />
+          )}
+          {activeTab === "bases" && isOperator && (
+            <BaseManagement
+              onNotify={notify}
+              onEditUser={(u) => {
+                setEditingUser(u);
+                setActiveTab("profiles");
+              }}
+            />
           )}
           {activeTab === "trips" && isOperator && (
             <ScheduleManagement
               isOperator={isOperator}
+              user={user}
               onNotify={notify}
               onSelectDriver={handleSelectDriver}
             />
@@ -965,6 +1120,9 @@ const TableRow = ({
   onOpenMap,
   onDriverClick,
   onNavigate,
+  user,
+  onReportError,
+  onShowErrorDetails,
   // props usados pelas linhas mock (quando não há `trip`)
   driver,
   route,
@@ -974,6 +1132,22 @@ const TableRow = ({
   statusColor: statusColorProp,
   isImpacted,
 }) => {
+  const canEditTrip = (t) => {
+    if (!t) return true;
+    if (user?.role === "ADMIN" || user?.profile === "ADMIN") return true;
+
+    const segmentBase = t.segment?.base;
+    if (!segmentBase) return true;
+
+    const userBaseId = user?.base?.id;
+    const tripBaseId = segmentBase.id;
+    const parentBaseId = segmentBase.parentBaseId;
+
+    return userBaseId == tripBaseId || userBaseId == parentBaseId;
+  };
+
+  const canEdit = canEditTrip(trip);
+
   const [isExpanded, setIsExpanded] = useState(false);
   const baseStatus = trip?.status || statusProp || "SCHEDULED";
 
@@ -994,91 +1168,14 @@ const TableRow = ({
   const isDelayed = status === "DELAYED" || status === "Atrasado";
   const isPasse = status === "PASSE";
 
-  const [touchStart, setTouchStart] = useState(null);
-  const [swipeOffset, setSwipeOffset] = useState(0);
-  const [isSwiping, setIsSwiping] = useState(false);
-  const [swipeReady, setSwipeReady] = useState(false);
-  const swipeTimerRef = React.useRef(null);
-
-  const clearTimer = () => {
-    if (swipeTimerRef.current) clearTimeout(swipeTimerRef.current);
-  };
-
-  const handleTouchStart = (e) => {
-    if (!isOperator || isCancelled || isPasse) return;
-    setTouchStart(e.targetTouches[0].clientX);
-
-    swipeTimerRef.current = setTimeout(() => {
-      setSwipeReady(true);
-      if (window.navigator?.vibrate) window.navigator.vibrate(50);
-    }, 1500);
-  };
-
-  const handleTouchMove = (e) => {
-    if (touchStart === null) return;
-
-    if (!swipeReady) {
-      // If user scrolls before the 1.5s timer, cancel the hold
-      clearTimer();
-      setTouchStart(null);
-      return;
-    }
-
-    setIsSwiping(true);
-    const currentX = e.targetTouches[0].clientX;
-    const diff = currentX - touchStart;
-
-    if (diff > 100) setSwipeOffset(100);
-    else if (diff < -100) setSwipeOffset(-100);
-    else setSwipeOffset(diff);
-  };
-
-  const handleTouchEnd = () => {
-    clearTimer();
-
-    if (!swipeReady || !isSwiping) {
-      setTouchStart(null);
-      setSwipeReady(false);
-      return;
-    }
-
-    setIsSwiping(false);
-
-    if (swipeOffset < -60) {
-      if (isDelayed && onClearDelay) onClearDelay();
-      else if (!isDelayed && onDelay) onDelay();
-    } else if (swipeOffset > 60) {
-      if (onCancel) onCancel();
-    }
-
-    setSwipeOffset(0);
-    setTouchStart(null);
-    setSwipeReady(false);
-  };
-
-  const swipeStyle =
-    swipeOffset !== 0
-      ? {
-          transform: `translateX(${swipeOffset}px)`,
-          transition: isSwiping ? "none" : "transform 0.2s ease-out",
-          opacity: Math.max(0.4, 1 - Math.abs(swipeOffset) / 200),
-        }
-      : swipeReady
-        ? { transition: "all 0.2s ease" }
-        : {};
-
   return (
     <>
       <tr
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
         onClick={() => {
           if (!isOperator || isCancelled) return;
           onNavigate?.("trips");
         }}
-        style={swipeStyle}
-        className={`group transition-all cursor-pointer ${isCancelled ? "opacity-30 grayscale cursor-not-allowed" : "hover:bg-slate-700/30"} ${swipeOffset > 0 ? "bg-rose-500/20 shadow-inner" : swipeOffset < 0 ? "bg-amber-500/20 shadow-inner" : ""} ${swipeReady && !isSwiping ? "scale-[0.99] bg-slate-800 ring-1 ring-sky-500/50 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] z-10 relative" : ""}`}
+        className={`group transition-all cursor-pointer ${isCancelled ? "opacity-30 grayscale cursor-not-allowed" : "hover:bg-slate-700/30"}`}
       >
         <td className="py-4 pl-4 border-none w-8 text-center pt-5">
           {!isPasse && serviceTrips.length > 1 ? (
@@ -1135,19 +1232,49 @@ const TableRow = ({
               <span className="bg-indigo-500/20 text-indigo-400 px-1.5 rounded text-[10px] font-black italic">
                 PASSE
               </span>
+              {trip?.segment?.hasError && (
+                <span
+                  className="text-xs animate-bounce cursor-help"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShowErrorDetails?.(trip.segment);
+                  }}
+                  title="Erro reportado"
+                >
+                  🚩
+                </span>
+              )}
               {trip.segment?.origin} → {trip.segment?.destination}
             </span>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="group-hover/trecho:text-slate-100 transition-colors">
-                {trip?.segment?.origin ||
-                  route?.split(" → ")[0] ||
-                  route?.split(" x ")[0]}{" "}
-                →{" "}
-                {trip?.segment?.destination ||
-                  route?.split(" → ")[1] ||
-                  route?.split(" x ")[1]}
-              </span>
+              <div
+                className={`flex items-center gap-2 ${trip?.segment?.hasError ? "cursor-help text-rose-400" : ""}`}
+                onClick={(e) => {
+                  if (trip?.segment?.hasError) {
+                    e.stopPropagation();
+                    onShowErrorDetails?.(trip.segment);
+                  }
+                }}
+              >
+                {trip?.segment?.hasError && (
+                  <span
+                    className="text-xs animate-bounce"
+                    title="Erro reportado"
+                  >
+                    🚩
+                  </span>
+                )}
+                <span className="group-hover/trecho:text-slate-100 transition-colors">
+                  {trip?.segment?.origin ||
+                    route?.split(" → ")[0] ||
+                    route?.split(" x ")[0]}{" "}
+                  →{" "}
+                  {trip?.segment?.destination ||
+                    route?.split(" → ")[1] ||
+                    route?.split(" x ")[1]}
+                </span>
+              </div>
               {trip?.segment?.origin &&
                 trip?.segment?.destination &&
                 onOpenMap && (
@@ -1213,59 +1340,76 @@ const TableRow = ({
         <td className="py-4 pl-4 text-right border-none">
           {isOperator && (
             <>
-              {!isCancelled ? (
-                <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all">
-                  {onDelay && !trip?.isImpacted && !isDelayed && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelay();
-                      }}
-                      className="p-2 hover:bg-amber-500/10 rounded-lg text-slate-500 hover:text-amber-400 transition-all text-xs font-bold uppercase tracking-tighter"
-                      title="Relatar Atraso"
-                    >
-                      Atraso
-                    </button>
+              {canEdit ? (
+                <>
+                  {!isCancelled ? (
+                    <div className="flex gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                      {onDelay && !trip?.isImpacted && !isDelayed && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelay();
+                          }}
+                          className="p-2 hover:bg-amber-500/10 rounded-lg text-slate-500 hover:text-amber-400 transition-all text-xs font-bold uppercase tracking-tighter"
+                          title="Relatar Atraso"
+                        >
+                          Atraso
+                        </button>
+                      )}
+                      {isDelayed && onClearDelay && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onClearDelay();
+                          }}
+                          className="p-2 hover:bg-emerald-500/10 rounded-lg text-slate-500 hover:text-emerald-400 transition-all text-xs font-bold uppercase tracking-tighter"
+                          title="Limpar Atraso"
+                        >
+                          Reverter
+                        </button>
+                      )}
+                      {onCancel && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCancel();
+                          }}
+                          className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-500 hover:text-rose-400 transition-all text-xs font-bold uppercase tracking-tighter"
+                          title="Cancelar Serviço"
+                        >
+                          Cancelar
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                      {onUndoCancel && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUndoCancel();
+                          }}
+                          className="p-2 hover:bg-emerald-500/10 rounded-lg text-slate-400 hover:text-emerald-400 transition-all text-xs font-bold uppercase tracking-tighter"
+                          title="Desfazer Cancelamento"
+                        >
+                          ↩️ Reverter
+                        </button>
+                      )}
+                    </div>
                   )}
-                  {isDelayed && onClearDelay && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onClearDelay();
-                      }}
-                      className="p-2 hover:bg-emerald-500/10 rounded-lg text-slate-500 hover:text-emerald-400 transition-all text-xs font-bold uppercase tracking-tighter"
-                      title="Limpar Atraso"
-                    >
-                      Reverter
-                    </button>
-                  )}
-                  {onCancel && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCancel();
-                      }}
-                      className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-500 hover:text-rose-400 transition-all text-xs font-bold uppercase tracking-tighter"
-                      title="Cancelar Serviço"
-                    >
-                      Cancelar
-                    </button>
-                  )}
-                </div>
+                </>
               ) : (
-                <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all">
-                  {onUndoCancel && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUndoCancel();
-                      }}
-                      className="p-2 hover:bg-emerald-500/10 rounded-lg text-slate-400 hover:text-emerald-400 transition-all text-xs font-bold uppercase tracking-tighter"
-                      title="Desfazer Cancelamento"
-                    >
-                      ↩️ Reverter
-                    </button>
-                  )}
+                <div className="flex justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReportError?.();
+                    }}
+                    className="px-4 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    title="Reportar erro no trecho para a base responsável"
+                  >
+                    ⚠️ Reportar Erro
+                  </button>
                 </div>
               )}
             </>

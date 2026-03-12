@@ -77,6 +77,8 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
         return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
       case "FERIAS":
         return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+      case "SOBRANDO":
+        return "bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]";
       default:
         return "bg-slate-500/10 text-slate-400 border-slate-500/20";
     }
@@ -98,6 +100,8 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
         return "Afastado";
       case "FERIAS":
         return "Férias";
+      case "SOBRANDO":
+        return "Sobrando";
       default:
         return status;
     }
@@ -167,11 +171,7 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
     .filter((d) => {
       // Status filter
       if (filterStatus !== "ALL") {
-        if (filterStatus === "SOBRANDO") {
-          if (!(d.status === "DISPONIVEL" && d.daysIdle >= 3)) return false;
-        } else {
-          if (d.status !== filterStatus) return false;
-        }
+        if (d.status !== filterStatus) return false;
       }
 
       // Search query
@@ -211,7 +211,7 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-100">
             Gerenciamento de Motoristas
@@ -220,14 +220,14 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
             Controle de Matrículas e Jornada
           </p>
         </div>
-        <div className="flex gap-4 items-center">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full md:w-auto">
+          <div className="relative w-full sm:w-auto">
             <input
               type="text"
               placeholder="Pesquisar motorista..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-2 focus:ring-sky-500 w-64 pl-10 transition-all font-medium"
+              className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-2 focus:ring-sky-500 w-full sm:w-64 pl-10 transition-all font-medium"
             />
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
               🔍
@@ -251,6 +251,7 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
               <option value="ATESTADO">ATESTADO</option>
               <option value="AFASTADO">AFASTADO</option>
               <option value="FERIAS">FÉRIAS</option>
+              <option value="SOBRANDO">SOBRANDO</option>
             </select>
           </div>
           <button
@@ -352,7 +353,7 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => {
                           setEditingDriver(driver);

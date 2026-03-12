@@ -50,7 +50,8 @@ const DriverFormModal = ({ driver, onClose, onSave, onNotify }) => {
       });
 
       if (!res.ok) {
-        throw new Error("Erro ao salvar motorista");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Erro ao salvar motorista");
       }
 
       onNotify?.(`Motorista ${driver ? "atualizado" : "criado"} com sucesso!`);
@@ -93,19 +94,19 @@ const DriverFormModal = ({ driver, onClose, onSave, onNotify }) => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
-                  Matrícula (4 Dígitos)
+                  Matrícula (5 Dígitos)
                 </label>
                 <input
                   type="text"
                   required
-                  maxLength={4}
-                  pattern="\d{4}"
+                  maxLength={5}
+                  pattern="\\d{5}"
                   value={matricula}
                   onChange={(e) =>
                     setMatricula(e.target.value.replace(/\D/g, ""))
                   }
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 font-mono tracking-widest focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                  placeholder="0000"
+                  placeholder="00000"
                 />
               </div>
 
@@ -146,6 +147,7 @@ const DriverFormModal = ({ driver, onClose, onSave, onNotify }) => {
                 <option value="ATESTADO">ATESTADO</option>
                 <option value="AFASTADO">AFASTADO</option>
                 <option value="FALTA">FALTA</option>
+                <option value="SOBRANDO">SOBRANDO</option>
               </select>
             </div>
 

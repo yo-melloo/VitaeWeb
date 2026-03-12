@@ -13,7 +13,7 @@ const DAYS_OF_WEEK = [
   { key: "SUNDAY", label: "DOM" },
 ];
 
-const ServiceFormModal = ({ service, onClose, onSave, onNotify }) => {
+const ServiceFormModal = ({ service, onClose, onSave, onNotify, user }) => {
   const [code, setCode] = useState(service ? service.code : "");
   const [name, setName] = useState(service ? service.name : "");
   const [operationalDays, setOperationalDays] = useState(
@@ -152,7 +152,11 @@ const ServiceFormModal = ({ service, onClose, onSave, onNotify }) => {
           </form>
 
           {service && (
-            <ServiceSegments serviceId={service.id} onNotify={onNotify} />
+            <ServiceSegments
+              serviceId={service.id}
+              onNotify={onNotify}
+              user={user}
+            />
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 const LiveMonitor = ({ onNavigate, isOperator }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [stats, setStats] = useState({
     onTrip: 0,
     inPasse: 0,

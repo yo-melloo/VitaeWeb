@@ -7,9 +7,25 @@ const UserFormModal = ({ user, onCancel, onSave, onNotify }) => {
     password: "", // Only set if changing/creating
     profile: user?.profile || "VIEWER",
     status: user?.status || (user ? "APPROVED" : "PENDING"),
+    baseId: user?.base?.id || "",
   });
 
+  const [bases, setBases] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    const fetchBases = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/bases`,
+        );
+        if (res.ok) setBases(await res.json());
+      } catch (err) {
+        console.error("Erro ao carregar bases:", err);
+      }
+    };
+    fetchBases();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,13 +47,20 @@ const UserFormModal = ({ user, onCancel, onSave, onNotify }) => {
       const res = await fetch(url, {
         method: user ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          base: formData.baseId ? { id: formData.baseId } : null,
+        }),
       });
 
-      if (!res.ok) throw new Error("Erro ao salvar usuário");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Erro ao salvar usuário");
+      }
 
+      const savedUser = await res.json();
       onNotify?.(`Usuário ${user ? "atualizado" : "criado"} com sucesso!`);
-      onSave();
+      onSave(savedUser);
     } catch (err) {
       onNotify?.(err.message, "error");
     } finally {
@@ -141,6 +164,26 @@ const UserFormModal = ({ user, onCancel, onSave, onNotify }) => {
                 </option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1.5">
+              Base de Lotação
+            </label>
+            <select
+              value={formData.baseId}
+              onChange={(e) =>
+                setFormData({ ...formData, baseId: e.target.value })
+              }
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+            >
+              <option value="">Não atribuído</option>
+              {bases.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-3 pt-6">

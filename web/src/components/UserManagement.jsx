@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import UserFormModal from "./UserFormModal";
 
-const UserManagement = ({ onNotify }) => {
+const UserManagement = ({
+  onNotify,
+  initialEditingUser,
+  onCloseEdit,
+  currentUser,
+  setUser,
+}) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -29,6 +35,17 @@ const UserManagement = ({ onNotify }) => {
     fetchUsers();
   }, [fetchUsers]);
 
+  useEffect(() => {
+    if (initialEditingUser) {
+      console.log(
+        "UserManagement: initialEditingUser received",
+        initialEditingUser,
+      );
+      setEditingUser(initialEditingUser);
+      setShowModal(true);
+    }
+  }, [initialEditingUser]);
+
   const handleDelete = async (id) => {
     if (!window.confirm("Deseja realmente excluir este usuário?")) return;
     try {
@@ -48,7 +65,7 @@ const UserManagement = ({ onNotify }) => {
 
   return (
     <div className="space-y-6">
-      <header className="flex justify-between items-center px-2">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center px-2 gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-100">
             Controle de Acessos
@@ -97,6 +114,7 @@ const UserManagement = ({ onNotify }) => {
                 <tr className="border-b border-slate-700 text-slate-500 text-[10px] uppercase font-black tracking-wider">
                   <th className="py-4 pl-6">Nome Completo</th>
                   <th className="py-4 px-4">Matrícula</th>
+                  <th className="py-4 px-4">Base</th>
                   <th className="py-4 px-4">Perfil</th>
                   <th className="py-4 pr-6 text-right">Ações</th>
                 </tr>
@@ -120,6 +138,11 @@ const UserManagement = ({ onNotify }) => {
                       </td>
                       <td className="py-4 px-4 text-slate-400 font-mono text-xs">
                         @{user.matricula}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-xs text-slate-300 font-medium">
+                          {user.base?.name || "—"}
+                        </span>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
@@ -156,7 +179,7 @@ const UserManagement = ({ onNotify }) => {
                         </div>
                       </td>
                       <td className="py-4 pr-6">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                           {activeTab === "pending" ? (
                             <button
                               onClick={() => {
@@ -197,11 +220,33 @@ const UserManagement = ({ onNotify }) => {
       {showModal && (
         <UserFormModal
           user={editingUser}
-          onCancel={() => setShowModal(false)}
           onNotify={onNotify}
-          onSave={() => {
+          onSave={(updatedUser) => {
             setShowModal(false);
+            setEditingUser(null);
+            onCloseEdit?.();
             fetchUsers();
+
+            // If the updated user is the one currently logged in, update the global session
+            if (
+              currentUser &&
+              updatedUser &&
+              currentUser.id === updatedUser.id
+            ) {
+              console.log(
+                "Updating current user session with new data:",
+                updatedUser,
+              );
+              setUser({
+                ...updatedUser,
+                role: updatedUser.profile || "VIEWER",
+              });
+            }
+          }}
+          onCancel={() => {
+            setShowModal(false);
+            setEditingUser(null);
+            onCloseEdit?.();
           }}
         />
       )}

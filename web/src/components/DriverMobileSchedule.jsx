@@ -28,6 +28,51 @@ const DriverMobileSchedule = ({ user, onNotify }) => {
     fetchTrips();
   }, [user, onNotify]);
 
+  const handleComplete = async (tripId) => {
+    if (!window.confirm("Deseja confirmar a finalização desta viagem?")) return;
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${tripId}/arrival`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(new Date().toISOString()),
+        },
+      );
+      if (!res.ok) throw new Error("Erro ao finalizar viagem");
+      onNotify?.("Viagem finalizada com sucesso!");
+      // Refresh trips
+      const updatedTrips = trips.map((t) =>
+        t.id === tripId ? { ...t, status: "FINISHED" } : t,
+      );
+      setTrips(updatedTrips);
+    } catch (err) {
+      onNotify?.(err.message, "error");
+    }
+  };
+
+  const handleRevert = async (tripId) => {
+    if (!window.confirm("Deseja desfazer a finalização desta viagem?")) return;
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips/${tripId}/revert`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      if (!res.ok) throw new Error("Erro ao reverter viagem");
+      onNotify?.("Viagem revertida para 'Em Progresso'");
+      // Refresh trips
+      const updatedTrips = trips.map((t) =>
+        t.id === tripId ? { ...t, status: "IN_PROGRESS" } : t,
+      );
+      setTrips(updatedTrips);
+    } catch (err) {
+      onNotify?.(err.message, "error");
+    }
+  };
+
   if (loading)
     return (
       <div className="p-8 text-center text-slate-500">
@@ -120,25 +165,30 @@ const DriverMobileSchedule = ({ user, onNotify }) => {
                   </span>
                 )}
               </div>
+
+              {trip.status === "IN_PROGRESS" && (
+                <button
+                  onClick={() => handleComplete(trip.id)}
+                  className="w-full mt-4 bg-sky-500 hover:bg-sky-400 text-white py-3 rounded-xl font-bold uppercase text-xs tracking-widest shadow-lg shadow-sky-500/20 active:scale-95 transition-all"
+                >
+                  Finalizar Viagem
+                </button>
+              )}
+
+              {trip.status === "FINISHED" &&
+                new Date() - new Date(trip.departureTime) <
+                  24 * 60 * 60 * 1000 && (
+                  <button
+                    onClick={() => handleRevert(trip.id)}
+                    className="w-full mt-4 bg-slate-700 hover:bg-slate-600 text-slate-300 py-3 rounded-xl font-bold uppercase text-xs tracking-widest border border-slate-600 active:scale-95 transition-all"
+                  >
+                    Reverter Finalização
+                  </button>
+                )}
             </div>
           ))
         )}
       </div>
-
-      <footer className="fixed bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-md border-t border-slate-700 p-4 flex justify-around items-center">
-        <div className="flex flex-col items-center gap-1 opacity-50 grayscale">
-          <span className="text-xl">🏠</span>
-          <span className="text-[8px] font-bold uppercase">Início</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 text-sky-400">
-          <span className="text-xl">📅</span>
-          <span className="text-[8px] font-bold uppercase">Escalas</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 opacity-50 grayscale">
-          <span className="text-xl">👤</span>
-          <span className="text-[8px] font-bold uppercase">Perfil</span>
-        </div>
-      </footer>
     </div>
   );
 };

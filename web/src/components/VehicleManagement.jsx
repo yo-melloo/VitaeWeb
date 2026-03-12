@@ -88,7 +88,7 @@ const VehicleManagement = ({ onNotify }) => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-100">
             Gerenciamento de Frota
@@ -172,7 +172,7 @@ const VehicleManagement = ({ onNotify }) => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => {
                             setEditingVehicle(vehicle);

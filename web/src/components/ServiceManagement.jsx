@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import BatchGeneratorModal from "./BatchGeneratorModal";
 import ServiceFormModal from "./ServiceFormModal";
 
-const ServiceManagement = ({ onNotify }) => {
+const ServiceManagement = ({ onNotify, user }) => {
   const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -86,7 +86,7 @@ const ServiceManagement = ({ onNotify }) => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-100">
             Gerenciamento de Serviços
@@ -156,7 +156,7 @@ const ServiceManagement = ({ onNotify }) => {
                       >
                         ⚡ Gerar Escala
                       </button>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => {
                             setEditingService(service);
@@ -204,6 +204,7 @@ const ServiceManagement = ({ onNotify }) => {
             fetchServices();
           }}
           onNotify={onNotify}
+          user={user}
         />
       )}
     </div>

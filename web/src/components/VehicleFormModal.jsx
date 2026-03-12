@@ -36,7 +36,8 @@ const VehicleFormModal = ({ vehicle, onClose, onSave, onNotify }) => {
       });
 
       if (!res.ok) {
-        throw new Error("Erro ao salvar veículo");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Erro ao salvar veículo");
       }
 
       onNotify?.(`Frota ${vehicle ? "atualizada" : "cadastrada"} com sucesso!`);
