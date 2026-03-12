@@ -52,6 +52,7 @@ public class Driver extends BaseAuditEntity {
 
     public enum DriverStatus {
         DISPONIVEL, FOLGA, ESCALADO, FALTA, ATESTADO, AFASTADO, FERIAS, SOBRANDO,
+        ATIVO, PLANTAO, INSS, RESCISAO, DEMISSAO, RESC_INDIRETA, RESC_INDIRETA_ATIVO,
         AVAILABLE, TRIP, RESTING, OFF, SICK, AWAY
     }
 }
