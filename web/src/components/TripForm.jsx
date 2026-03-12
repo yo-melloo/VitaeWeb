@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
-const TripForm = ({ onCancel, onSave, onNotify, initialData = null }) => {
+const TripForm = ({ onCancel, onSave, onNotify, initialData = null, user }) => {
   const [formData, setFormData] = useState({
     driverId: initialData?.driver?.id || "",
     serviceId: initialData?.serviceId || "",
@@ -16,6 +16,22 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null }) => {
     vehicleId: initialData?.vehicle?.id || "",
     status: initialData?.status || "SCHEDULED",
   });
+
+  const canEditTrip = (trip) => {
+    if (!trip) return true; // Creating new
+    if (user?.role === "ADMIN" || user?.profile === "ADMIN") return true;
+
+    const segmentBase = trip.segment?.base;
+    if (!segmentBase) return true;
+
+    const userBaseId = user?.base?.id;
+    const tripBaseId = segmentBase.id;
+    const parentBaseId = segmentBase.parentBaseId;
+
+    return userBaseId == tripBaseId || userBaseId == parentBaseId;
+  };
+
+  const isLocked = initialData && !canEditTrip(initialData);
 
   const [drivers, setDrivers] = useState([]);
   const [services, setServices] = useState([]);
@@ -151,6 +167,11 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null }) => {
   };
 
   const handleSave = async () => {
+    if (isLocked) {
+      onNotify?.("Você não tem permissão para alterar esta escala.", "error");
+      return;
+    }
+
     if (
       !formData.driverId ||
       !formData.segmentId ||
@@ -206,6 +227,17 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null }) => {
   );
   const hasBlockingAlert = alerts.some((a) => a.type === "danger");
 
+  const formatDateTime = (iso) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl max-w-2xl mx-auto animate-in fade-in zoom-in duration-300">
       <div className="flex items-center gap-3 mb-6">
@@ -214,9 +246,11 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null }) => {
           <h3 className="text-2xl font-bold text-slate-100">
             {initialData ? "Editar Escala" : "Nova Escala de Viagem"}
           </h3>
-          <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mt-0.5">
-            Atribuição manual de motorista
-          </p>
+          {isLocked && (
+            <p className="text-rose-400 text-[10px] font-black uppercase flex items-center gap-1 mt-1">
+              <span>🔒 Acesso Restrito à Base Responsável</span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -496,6 +530,21 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null }) => {
           </div>
         )}
 
+        {initialData?.updatedBy && (
+          <div className="mt-4 px-6 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl flex justify-between items-center">
+            <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">
+              Informações de Auditoria
+            </span>
+            <p className="text-xs text-slate-400 italic">
+              Alterado por{" "}
+              <span className="text-sky-500 font-bold">
+                {initialData.updatedBy}
+              </span>{" "}
+              em {new Date(initialData.updatedAt).toLocaleString()}
+            </p>
+          </div>
+        )}
+
         <div className="flex gap-4 pt-4">
           <button
             onClick={onCancel}
@@ -506,6 +555,7 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null }) => {
           <button
             onClick={handleSave}
             disabled={
+              isLocked ||
               hasBlockingAlert ||
               saving ||
               !formData.driverId ||
@@ -514,6 +564,7 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null }) => {
               !formData.departureTime
             }
             className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
+              isLocked ||
               hasBlockingAlert ||
               saving ||
               !formData.driverId ||
