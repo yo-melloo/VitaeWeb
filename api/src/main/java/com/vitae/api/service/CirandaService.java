@@ -23,7 +23,7 @@ public class CirandaService {
     private TripRepository tripRepository;
 
     /**
-     * Sugere o próximo motorista dispoível na base de origem (`originName`)
+     * Sugere o próximo motorista disponível na base de origem (`originName`)
      * que cumpra o tempo mínimo de descanso de 11h (Interjornada).
      */
     public Driver suggestNextDriver(String originName, LocalDateTime departureTime) {
@@ -59,7 +59,7 @@ public class CirandaService {
             }
         }
 
-        // Ordena pela data de chegada (FIFO: O quem chegou primeiro na ciranda/fila)
+        // FIFO: O que chegou primeiro na ciranda/fila
         candidates.sort(Comparator.comparing(DriverCandidate::getArrivalTime));
 
         if (candidates.isEmpty()) {
@@ -69,7 +69,6 @@ public class CirandaService {
         return candidates.get(0).getDriver();
     }
 
-    // Classe auxiliar para ordenação da fila (Ciranda)
     private static class DriverCandidate {
         private final Driver driver;
         private final LocalDateTime arrivalTime;

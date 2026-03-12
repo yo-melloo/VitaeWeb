@@ -32,7 +32,7 @@ public class BatchScheduleService {
         com.vitae.api.model.Service service = serviceRepository.findById(request.getServiceId())
                 .orElseThrow(() -> new RuntimeException("Service not found"));
 
-        List<Segment> segments = segmentRepository.findByServiceIdOrderBySequenceAsc(request.getServiceId());
+        List<Segment> segments = segmentRepository.findByService_IdOrderBySequenceAsc(request.getServiceId());
         List<Trip> generatedTrips = new ArrayList<>();
 
         LocalDate current = request.getStartDate();
@@ -45,28 +45,39 @@ public class BatchScheduleService {
                 LocalDateTime departureTime = current.atTime(request.getDefaultDepartureTime());
 
                 for (Segment segment : segments) {
-                    Driver autoDriver = cirandaService.suggestNextDriver(segment.getOrigin(), departureTime);
-                    int duration = (segment.getEstimatedDurationMinutes() != null)
-                            ? segment.getEstimatedDurationMinutes()
-                            : 60;
+                    // Filter by activeDate: use segment if activeDate is null or matches current
+                    // date
+                    if (segment.getActiveDate() != null && !segment.getActiveDate().equals(current)) {
+                        continue;
+                    }
+                    com.vitae.api.config.AuditorAwareImpl.setAuditor("CIRANDA_SYSTEM");
+                    try {
+                        Driver autoDriver = cirandaService.suggestNextDriver(segment.getOrigin(), departureTime);
+                        int duration = (segment.getEstimatedDurationMinutes() != null)
+                                ? segment.getEstimatedDurationMinutes()
+                                : 60;
 
-                    Trip trip = Trip.builder()
-                            .segment(segment)
-                            .serviceId(segment.getService().getId())
-                            .driver(autoDriver)
-                            .departureTime(departureTime)
-                            .arrivalTime(departureTime.plusMinutes(duration))
-                            .status(TripStatus.SCHEDULED)
-                            .build();
+                        Trip trip = Trip.builder()
+                                .segment(segment)
+                                .serviceId(segment.getService().getId())
+                                .driver(autoDriver)
+                                .departureTime(departureTime)
+                                .arrivalTime(departureTime.plusMinutes(duration))
+                                .status(TripStatus.SCHEDULED)
+                                .build();
 
-                    // Use TripService to apply business rules (Dobra, Rest)
-                    Trip savedTrip = tripService.createTrip(trip);
-                    generatedTrips.add(savedTrip);
+                        // Use TripService to apply business rules (Dobra, Rest)
+                        Trip savedTrip = tripService.createTrip(trip);
+                        generatedTrips.add(savedTrip);
 
-                    // Set next departure time for subsequent segment in sequence
-                    LocalDateTime arrivalTimeForBuffer = savedTrip.getArrivalTime() != null ? savedTrip.getArrivalTime()
-                            : departureTime.plusMinutes(duration);
-                    departureTime = arrivalTimeForBuffer.plusMinutes(30); // 30 min buffer
+                        // Set next departure time for subsequent segment in sequence
+                        LocalDateTime arrivalTimeForBuffer = savedTrip.getArrivalTime() != null
+                                ? savedTrip.getArrivalTime()
+                                : departureTime.plusMinutes(duration);
+                        departureTime = arrivalTimeForBuffer.plusMinutes(30); // 30 min buffer
+                    } finally {
+                        com.vitae.api.config.AuditorAwareImpl.clear();
+                    }
                 }
             }
             current = current.plusDays(1);
