@@ -39,19 +39,26 @@ public class TripService {
         trip.setStatus(TripStatus.DELAYED);
         Trip savedTrip = tripRepository.save(trip);
 
-        // Propagate impact to next driver trip
-        tripRepository.findByDriverIdAndDepartureTimeAfterOrderByDepartureTimeAsc(
-                trip.getDriver().getId(), trip.getDepartureTime())
-                .stream().findFirst().ifPresent(next -> {
+        // Propagate impact to next segment of the same service on the same day
+        LocalDateTime startOfDay = trip.getDepartureTime().toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = trip.getDepartureTime().toLocalDate().atTime(23, 59, 59);
+
+        tripRepository.findByServiceIdAndDepartureTimeBetween(trip.getServiceId(), startOfDay, endOfDay)
+                .stream()
+                .filter(t -> t.getDepartureTime().isAfter(trip.getDepartureTime()))
+                .sorted(java.util.Comparator.comparing(Trip::getDepartureTime))
+                .findFirst().ifPresent(next -> {
                     next.setIsImpacted(true);
                     tripRepository.save(next);
                 });
 
-        // Propagate impact to next vehicle trip
+        // Propagate impact to next vehicle trip on the same day
         if (trip.getVehicle() != null) {
             tripRepository.findByVehicleIdAndDepartureTimeAfterOrderByDepartureTimeAsc(
                     trip.getVehicle().getId(), trip.getDepartureTime())
-                    .stream().findFirst().ifPresent(next -> {
+                    .stream()
+                    .filter(t -> t.getDepartureTime().isBefore(endOfDay.plusNanos(1)))
+                    .findFirst().ifPresent(next -> {
                         next.setIsImpacted(true);
                         tripRepository.save(next);
                     });
@@ -69,19 +76,26 @@ public class TripService {
         trip.setIsImpacted(false); // A delayed trip can also be impacted, so we clear both
         Trip savedTrip = tripRepository.save(trip);
 
-        // Try to clear impact on next driver trip
-        tripRepository.findByDriverIdAndDepartureTimeAfterOrderByDepartureTimeAsc(
-                trip.getDriver().getId(), trip.getDepartureTime())
-                .stream().findFirst().ifPresent(next -> {
+        // Try to clear impact on next service trip on the same day
+        LocalDateTime startOfDay = trip.getDepartureTime().toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = trip.getDepartureTime().toLocalDate().atTime(23, 59, 59);
+
+        tripRepository.findByServiceIdAndDepartureTimeBetween(trip.getServiceId(), startOfDay, endOfDay)
+                .stream()
+                .filter(t -> t.getDepartureTime().isAfter(trip.getDepartureTime()))
+                .sorted(java.util.Comparator.comparing(Trip::getDepartureTime))
+                .findFirst().ifPresent(next -> {
                     next.setIsImpacted(false);
                     tripRepository.save(next);
                 });
 
-        // Try to clear impact on next vehicle trip
+        // Try to clear impact on next vehicle trip on the same day
         if (trip.getVehicle() != null) {
             tripRepository.findByVehicleIdAndDepartureTimeAfterOrderByDepartureTimeAsc(
                     trip.getVehicle().getId(), trip.getDepartureTime())
-                    .stream().findFirst().ifPresent(next -> {
+                    .stream()
+                    .filter(t -> t.getDepartureTime().isBefore(endOfDay.plusNanos(1)))
+                    .findFirst().ifPresent(next -> {
                         next.setIsImpacted(false);
                         tripRepository.save(next);
                     });
@@ -128,6 +142,10 @@ public class TripService {
     public Trip updateArrivalTime(Long tripId, LocalDateTime actualArrival) {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found"));
+
+        trip.setActualArrivalTime(actualArrival != null ? actualArrival : LocalDateTime.now());
+        trip.setStatus(TripStatus.FINISHED);
+
         if (trip.getDriver() != null) {
             Driver driver = trip.getDriver();
             driver.setStatus(DriverStatus.FOLGA);
@@ -141,6 +159,34 @@ public class TripService {
         return tripRepository.save(trip);
     }
 
+    @Transactional
+    public Trip revertTrip(Long tripId) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new RuntimeException("Trip not found"));
+
+        if (trip.getStatus() != TripStatus.FINISHED) {
+            throw new RuntimeException("Apenas viagens finalizadas podem ser revertidas.");
+        }
+
+        // Removed 24h limit to allow reverting accidental finishes
+
+        trip.setStatus(TripStatus.IN_PROGRESS);
+        trip.setActualArrivalTime(null);
+
+        if (trip.getDriver() != null) {
+            Driver driver = trip.getDriver();
+            driver.setStatus(DriverStatus.ESCALADO);
+            driverRepository.save(driver);
+        }
+
+        if (trip.getVehicle() != null) {
+            trip.getVehicle().setStatus(com.vitae.api.model.Vehicle.VehicleStatus.ON_TRIP);
+            vehicleRepository.save(trip.getVehicle());
+        }
+
+        return tripRepository.save(trip);
+    }
+
     private void validateBusinessRules(Trip trip) {
         Driver driver = trip.getDriver();
 
@@ -148,83 +194,50 @@ public class TripService {
         if (driver != null && driver.getSaldoDias() != null && driver.getSaldoDias() > 7) {
             trip.setIsDobra(true);
         }
-
-        // 3. Operational Days Rule
-        if (trip.getSegment() != null && trip.getSegment().getService() != null) {
-            // com.vitae.api.model.Service service = trip.getSegment().getService();
-            // java.time.DayOfWeek departureDay = trip.getDepartureTime().getDayOfWeek();
-
-            // Desativado a pedido do cliente para permitir escalas avulsas:
-            // if (!service.getOperationalDays().contains(departureDay)) {
-            // trip.setStatus(com.vitae.api.model.TripStatus.CANCELLED);
-            // }
-        }
     }
 
     @Transactional
+    public Trip updateTrip(Long id, Trip tripUpdate) {
+        Trip trip = tripRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Trip not found"));
+
+        if (tripUpdate.getDriver() != null) {
+            trip.setDriver(tripUpdate.getDriver());
+            // Se atribuiu motorista manual, garante que ele está ESCALADO se a viagem for
+            // hoje/em progresso
+            if (trip.getStatus() == TripStatus.IN_PROGRESS || trip.getStatus() == TripStatus.SCHEDULED) {
+                trip.getDriver().setStatus(DriverStatus.ESCALADO);
+                driverRepository.save(trip.getDriver());
+            }
+        }
+        if (tripUpdate.getSegment() != null)
+            trip.setSegment(tripUpdate.getSegment());
+        if (tripUpdate.getServiceId() != null)
+            trip.setServiceId(tripUpdate.getServiceId());
+        if (tripUpdate.getDepartureTime() != null)
+            trip.setDepartureTime(tripUpdate.getDepartureTime());
+        if (tripUpdate.getVehicle() != null)
+            trip.setVehicle(tripUpdate.getVehicle());
+        if (tripUpdate.getStatus() != null)
+            trip.setStatus(tripUpdate.getStatus());
+
+        return tripRepository.save(trip);
+    }
+
+    @Transactional
+    public void deleteTrip(Long id) {
+        tripRepository.deleteById(id);
+    }
+
     public Trip cancelTrip(Long tripId) {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found"));
         trip.setStatus(TripStatus.CANCELLED);
-        return tripRepository.save(trip);
-    }
-
-    @Transactional
-    public Trip updateTrip(Long tripId, Trip currentData) {
-        Trip trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new RuntimeException("Trip not found"));
-
-        if (currentData.getDriver() != null)
-            trip.setDriver(currentData.getDriver());
-        if (currentData.getSegment() != null)
-            trip.setSegment(currentData.getSegment());
-        if (currentData.getServiceId() != null)
-            trip.setServiceId(currentData.getServiceId());
-        if (currentData.getDepartureTime() != null)
-            trip.setDepartureTime(currentData.getDepartureTime());
-        if (currentData.getVehicle() != null)
-            trip.setVehicle(currentData.getVehicle());
-        if (currentData.getStatus() != null) {
-            trip.setStatus(currentData.getStatus());
-            // Auto-reparação: Se a viagem for iniciada, limpa o status de falta
-            if (currentData.getStatus() == TripStatus.IN_PROGRESS) {
-                if (trip.getDriver() != null && trip.getDriver().getStatus() == DriverStatus.FALTA) {
-                    trip.getDriver().setStatus(DriverStatus.DISPONIVEL);
-                    driverRepository.save(trip.getDriver());
-                }
-            }
-            // Transição para FOLGA e AVAILABLE ao finalizar
-            if (currentData.getStatus() == TripStatus.FINISHED) {
-                if (trip.getDriver() != null) {
-                    Driver driver = trip.getDriver();
-                    driver.setStatus(DriverStatus.FOLGA);
-                    driver.setLastStatusChange(LocalDateTime.now());
-                    driverRepository.save(driver);
-                }
-                if (trip.getVehicle() != null) {
-                    trip.getVehicle().setStatus(com.vitae.api.model.Vehicle.VehicleStatus.AVAILABLE);
-                    vehicleRepository.save(trip.getVehicle());
-                }
-            }
-            // Transição para ON_TRIP ao iniciar
-            if (currentData.getStatus() == TripStatus.IN_PROGRESS) {
-                if (trip.getVehicle() != null) {
-                    trip.getVehicle().setStatus(com.vitae.api.model.Vehicle.VehicleStatus.ON_TRIP);
-                    vehicleRepository.save(trip.getVehicle());
-                }
-            }
+        if (trip.getDriver() != null) {
+            trip.getDriver().setStatus(DriverStatus.DISPONIVEL);
+            driverRepository.save(trip.getDriver());
         }
         return tripRepository.save(trip);
-    }
-
-    @Transactional
-    public void deleteTrip(Long tripId) {
-        tripRepository.deleteById(tripId);
-    }
-
-    public String checkRestCompliance(Driver driver, LocalDateTime newDepartureTime) {
-        // Mock logic for demonstration, real logic would query TripRepository
-        return "OK";
     }
 
     public List<Trip> listTrips() {
@@ -246,8 +259,6 @@ public class TripService {
 
         for (Trip trip : scheduledTrips) {
             trip.setStatus(TripStatus.IN_PROGRESS);
-            // Auto-reparação logic is already in updateTrip, but we repeat it here just in
-            // case
             if (trip.getDriver() != null && trip.getDriver().getStatus() == DriverStatus.FALTA) {
                 trip.getDriver().setStatus(DriverStatus.DISPONIVEL);
                 driverRepository.save(trip.getDriver());
