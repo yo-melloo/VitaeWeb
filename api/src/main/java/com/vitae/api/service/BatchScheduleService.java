@@ -85,4 +85,24 @@ public class BatchScheduleService {
 
         return generatedTrips;
     }
+
+    @Transactional
+    public List<Trip> generateAllSequenced(java.time.LocalDate startDate, java.time.LocalDate endDate,
+            java.time.LocalTime defaultTime) {
+        List<com.vitae.api.model.Service> services = serviceRepository
+                .findAllByOutOfSequenceFalseOrderByCirandaSequenceAsc();
+        List<Trip> allTrips = new ArrayList<>();
+
+        for (com.vitae.api.model.Service service : services) {
+            BatchScheduleRequest request = new BatchScheduleRequest();
+            request.setServiceId(service.getId());
+            request.setStartDate(startDate);
+            request.setEndDate(endDate);
+            request.setDefaultDepartureTime(defaultTime);
+
+            allTrips.addAll(generateBatch(request));
+        }
+
+        return allTrips;
+    }
 }

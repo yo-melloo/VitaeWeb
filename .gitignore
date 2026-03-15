@@ -28,5 +28,8 @@ seeds/**
 commits.md
 
 # Documentação Local
-BUSINESS_RULES.mdbackup_db/
+BUSINESS_RULES.md
+
+# Backups and Sensitive Data
+backup_db/
 backups/
