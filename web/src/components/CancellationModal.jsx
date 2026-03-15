@@ -1,4 +1,17 @@
 import React, { useState } from "react";
+const LoadingSpinner = ({ size = "sm", className = "" }) => {
+  const sizeClasses = {
+    xs: "w-3 h-3",
+    sm: "w-4 h-4",
+    md: "w-6 h-6",
+    lg: "w-10 h-10",
+  };
+  return (
+    <div
+      className={`border-2 border-slate-400/20 border-t-sky-400 rounded-full animate-spin ${sizeClasses[size] || sizeClasses.sm} ${className}`}
+    ></div>
+  );
+};
 
 const CancellationModal = ({
   isOpen,
@@ -6,6 +19,7 @@ const CancellationModal = ({
   trip,
   relatedTrips,
   onConfirm,
+  loading = false,
 }) => {
   const [cancelType, setCancelType] = useState("FULL"); // FULL or PARTIAL
   const [createPasse, setCreatePasse] = useState(true);
@@ -165,12 +179,13 @@ const CancellationModal = ({
               Voltar
             </button>
             <button
+              disabled={loading}
               onClick={() =>
                 onConfirm({ type: cancelType, passe: createPasse })
               }
-              className={`flex-1 ${cancelType === "FULL" ? "bg-rose-500 hover:bg-rose-400" : "bg-sky-500 hover:bg-sky-400"} text-white py-3 rounded-2xl font-bold text-sm transition-all shadow-lg active:scale-95`}
+              className={`flex-1 flex items-center justify-center gap-2 ${cancelType === "FULL" ? "bg-rose-500 hover:bg-rose-400" : "bg-sky-500 hover:bg-sky-400"} text-white py-3 rounded-2xl font-bold text-sm transition-all shadow-lg active:scale-95 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
             >
-              Confirmar
+              {loading ? <LoadingSpinner size="sm" /> : "Confirmar"}
             </button>
           </div>
         </div>

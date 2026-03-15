@@ -27,6 +27,26 @@ const getGreeting = () => {
   return "Boa noite";
 };
 
+// --- NOVOS COMPONENTES DE UX ---
+
+const Skeleton = ({ className }) => (
+  <div className={`animate-pulse bg-slate-700/50 rounded ${className}`}></div>
+);
+
+const LoadingSpinner = ({ size = "sm", className = "" }) => {
+  const sizeClasses = {
+    xs: "w-3 h-3",
+    sm: "w-4 h-4",
+    md: "w-6 h-6",
+    lg: "w-10 h-10",
+  };
+  return (
+    <div
+      className={`border-2 border-slate-400/20 border-t-sky-400 rounded-full animate-spin ${sizeClasses[size] || sizeClasses.sm} ${className}`}
+    ></div>
+  );
+};
+
 // Returns the first name of a full name string
 const getFirstName = (fullName = "") => fullName.split(" ")[0] ?? fullName;
 
@@ -394,6 +414,8 @@ const Dashboard = ({
     destination: "",
   });
   const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null); // ID da trip sendo editada
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   // clock moved to parent or side effect not needed if we re-render APP
@@ -427,11 +449,15 @@ const Dashboard = ({
       vehicle: trip.vehicle || null,
       status: trip.status,
       isImpacted: trip.isImpacted,
+      hasRestViolation: trip.hasRestViolation,
+      violationMessage: trip.violationMessage,
+      isDobra: trip.isDobra,
       updatedBy: trip.updatedBy,
       updatedAt: trip.updatedAt,
     });
 
     const fetchTrips = async () => {
+      setLoading(true);
       try {
         const res = await fetch(`${API}/api/trips`);
         if (!res.ok) {
@@ -456,8 +482,8 @@ const Dashboard = ({
         const filtered = sorted.filter((t) => {
           const dep = new Date(t.departureTime);
           return (
+            dep.toLocaleDateString() === now.toLocaleDateString() && // Simplified check for "today"
             dep >= now &&
-            dep <= endOfToday &&
             t.status !== "FINISHED" &&
             t.status !== "CANCELLED"
           );
@@ -466,6 +492,8 @@ const Dashboard = ({
         setTrips(filtered);
       } catch (err) {
         console.error("Error fetching trips:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -560,32 +588,39 @@ const Dashboard = ({
   };
 
   const handleDelay = async (id) => {
+    setActionLoading(id);
     try {
       const res = await fetch(`${API}/api/trips/${id}/delay`, {
         method: "POST",
       });
       if (res.ok) {
         const updated = await res.json();
-        setTrips(trips.map((t) => (t.id === id ? updated : t)));
+        // Preserving local mapped fields if any
+        setTrips(trips.map((t) => (t.id === id ? { ...t, ...updated } : t)));
         notify("Atraso reportado com sucesso!");
       }
     } catch (err) {
       notify("Erro ao reportar atraso", "error");
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleClearDelay = async (id) => {
+    setActionLoading(id);
     try {
       const res = await fetch(`${API}/api/trips/${id}/delay/clear`, {
         method: "POST",
       });
       if (res.ok) {
         const updated = await res.json();
-        setTrips(trips.map((t) => (t.id === id ? updated : t)));
+        setTrips(trips.map((t) => (t.id === id ? { ...t, ...updated } : t)));
         notify("Atraso revertido!");
       }
     } catch (err) {
       notify("Erro ao reverter atraso", "error");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -640,11 +675,26 @@ const Dashboard = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
-              {trips.length > 0 ? (
+              {loading ? (
+                // Skeleton Rows
+                [...Array(5)].map((_, i) => (
+                  <tr key={`skeleton-${i}`} className="animate-pulse">
+                    <td className="py-5 pl-4"><Skeleton className="h-4 w-4" /></td>
+                    <td className="py-5 pr-4"><Skeleton className="h-4 w-32" /></td>
+                    <td className="py-5 px-4"><Skeleton className="h-4 w-48" /></td>
+                    <td className="py-5 px-4"><Skeleton className="h-4 w-24" /></td>
+                    <td className="py-5 px-4"><Skeleton className="h-4 w-12" /></td>
+                    <td className="py-5 px-4"><Skeleton className="h-4 w-16" /></td>
+                    <td className="py-5 px-4"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-5 pl-4 text-right"><Skeleton className="h-8 w-8 ml-auto" /></td>
+                  </tr>
+                ))
+              ) : trips.length > 0 ? (
                 trips.map((trip) => (
                   <TableRow
                     key={trip.id}
                     trip={trip}
+                    isActionLoading={actionLoading === trip.id}
                     serviceTrips={trips.filter(
                       (t) =>
                         t.serviceCode != null &&
@@ -1171,6 +1221,7 @@ const TableRow = ({
   user,
   onReportError,
   onShowErrorDetails,
+  isActionLoading = false,
   // props usados pelas linhas mock (quando não há `trip`)
   driver,
   route,
@@ -1272,6 +1323,22 @@ const TableRow = ({
                   ⚠️
                 </span>
               )}
+            {trip?.hasRestViolation && (
+              <span
+                className="text-rose-500 animate-pulse cursor-help"
+                title={trip.violationMessage || "Violação de Descanso (11h)"}
+              >
+                🚫
+              </span>
+            )}
+            {trip?.isDobra && (
+              <span
+                className="bg-amber-500/20 text-amber-500 px-1 rounded text-[8px] font-black uppercase tracking-tighter border border-amber-500/30"
+                title="Dobra: Ciclo de trabalho excedeu 6 dias"
+              >
+                DOBRA
+              </span>
+            )}
           </p>
         </td>
         <td className="py-4 px-4 text-slate-300 border-none group/trecho">
@@ -1394,26 +1461,28 @@ const TableRow = ({
                     <div className="flex gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
                       {onDelay && !trip?.isImpacted && !isDelayed && (
                         <button
+                          disabled={isActionLoading}
                           onClick={(e) => {
                             e.stopPropagation();
                             onDelay();
                           }}
-                          className="p-2 hover:bg-amber-500/10 rounded-lg text-slate-500 hover:text-amber-400 transition-all text-xs font-bold uppercase tracking-tighter"
-                          title="Relatar Atraso"
+                          className={`p-2 rounded-lg transition-all ${isActionLoading ? "bg-slate-700 text-slate-500 cursor-not-allowed" : "bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white shadow-sm"}`}
+                          title="Reportar Atraso"
                         >
-                          Atraso
+                          {isActionLoading ? <LoadingSpinner size="xs" /> : "⏱️"}
                         </button>
                       )}
-                      {isDelayed && onClearDelay && (
+                      {onClearDelay && isDelayed && (
                         <button
+                          disabled={isActionLoading}
                           onClick={(e) => {
                             e.stopPropagation();
                             onClearDelay();
                           }}
-                          className="p-2 hover:bg-emerald-500/10 rounded-lg text-slate-500 hover:text-emerald-400 transition-all text-xs font-bold uppercase tracking-tighter"
-                          title="Limpar Atraso"
+                          className={`p-2 rounded-lg transition-all ${isActionLoading ? "bg-slate-700 text-slate-500 cursor-not-allowed" : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white shadow-sm"}`}
+                          title="Reverter Atraso / Confirmar Saída"
                         >
-                          Reverter
+                          {isActionLoading ? <LoadingSpinner size="xs" /> : "✅"}
                         </button>
                       )}
                       {onCancel && (
