@@ -7,4 +7,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ServiceRepository extends JpaRepository<Service, Long> {
     java.util.List<Service> findAllByOutOfSequenceFalseOrderByCirandaSequenceAsc();
+    java.util.Optional<Service> findByCode(String code);
 }

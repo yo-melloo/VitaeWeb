@@ -163,7 +163,7 @@ const LiveMonitor = ({ onNavigate, isOperator }) => {
         setActiveTrips(activeToday);
 
         // Auto-collapse if no trips are in progress
-        if (active.length === 0) {
+        if (activeToday.length === 0) {
           setIsCollapsed(true);
         }
 

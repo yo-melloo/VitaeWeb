@@ -915,6 +915,10 @@ const App = () => {
     setNotification({ message, type });
   }, []);
 
+  const handleClearNotification = useCallback(() => {
+    setNotification(null);
+  }, []);
+
   useEffect(() => {
     if (user) {
       window.localStorage.setItem("vitae:user", JSON.stringify(user));
@@ -985,7 +989,7 @@ const App = () => {
           <Notification
             message={notification.message}
             type={notification.type}
-            onClose={() => setNotification(null)}
+            onClose={handleClearNotification}
           />
         )}
       </>
@@ -1152,7 +1156,7 @@ const App = () => {
         <Notification
           message={notification.message}
           type={notification.type}
-          onClose={useCallback(() => setNotification(null), [])}
+          onClose={handleClearNotification}
         />
       )}
     </div>
