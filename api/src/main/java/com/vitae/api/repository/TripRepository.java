@@ -21,4 +21,7 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
     List<Trip> findByVehicleIdAndDepartureTimeAfterOrderByDepartureTimeAsc(Long vehicleId, LocalDateTime time);
 
     Trip findFirstByDriverIdOrderByDepartureTimeDesc(Long driverId);
+
+    java.util.List<Trip> findByDriverIdAndDepartureTimeBeforeOrderByDepartureTimeDesc(Long driverId,
+            LocalDateTime time);
 }

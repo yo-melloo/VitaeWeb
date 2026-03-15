@@ -12,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Service extends BaseAuditEntity {
 
     @Id
@@ -31,4 +31,11 @@ public class Service extends BaseAuditEntity {
     @Column(name = "day_of_week")
     @Builder.Default
     private java.util.Set<java.time.DayOfWeek> operationalDays = java.util.EnumSet.allOf(java.time.DayOfWeek.class);
+
+    @Column(name = "ciranda_sequence")
+    private Integer cirandaSequence;
+
+    @Column(name = "out_of_sequence")
+    @Builder.Default
+    private Boolean outOfSequence = false;
 }
