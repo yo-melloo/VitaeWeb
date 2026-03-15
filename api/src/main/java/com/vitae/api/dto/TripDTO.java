@@ -19,6 +19,9 @@ public class TripDTO {
     private String routeName;
     private TripStatus status;
     private Boolean isImpacted;
+    private Boolean hasRestViolation;
+    private String violationMessage;
+    private Boolean isDobra;
     private LocalDateTime departureTime;
     private LocalDateTime arrivalTime;
     private LocalDateTime actualArrivalTime;

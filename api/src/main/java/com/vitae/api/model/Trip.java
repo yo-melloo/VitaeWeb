@@ -53,5 +53,10 @@ public class Trip extends BaseAuditEntity {
     @Builder.Default
     private Boolean isImpacted = false;
 
+    @Builder.Default
+    private Boolean hasRestViolation = false;
+
+    private String violationMessage;
+
     private LocalDateTime actualArrivalTime;
 }

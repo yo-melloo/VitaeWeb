@@ -212,10 +212,38 @@ public class TripService {
         Driver driver = trip.getDriver();
 
         if (driver != null) {
-            // New Cycle Logic: > 6 days means finishing on 7th or already on 7th
+            // 1. Lógica de Dobra (Ciclo de 7 dias)
             int cycleDays = cirandaService.calculateCycleDays(driver.getId(), trip.getDepartureTime());
             if (cycleDays >= 7) {
                 trip.setIsDobra(true);
+            }
+
+            // 2. Lógica de Interjornada (11h de descanso)
+            List<Trip> previousTrips = tripRepository.findByDriverIdAndDepartureTimeBeforeOrderByDepartureTimeDesc(
+                    driver.getId(), trip.getDepartureTime());
+            
+            if (!previousTrips.isEmpty()) {
+                Trip lastTrip = previousTrips.get(0);
+                LocalDateTime arrivalOfLastTrip = lastTrip.getActualArrivalTime() != null 
+                        ? lastTrip.getActualArrivalTime() 
+                        : lastTrip.getArrivalTime();
+                
+                if (arrivalOfLastTrip != null) {
+                    long minutesRest = java.time.Duration.between(arrivalOfLastTrip, trip.getDepartureTime()).toMinutes();
+                    if (minutesRest < 11 * 60) {
+                        trip.setHasRestViolation(true);
+                        long hours = minutesRest / 60;
+                        long mins = minutesRest % 60;
+                        trip.setViolationMessage(String.format("Descanso insuficiente: apenas %dh %02dmin (Mínimo 11h)", hours, mins));
+                    } else {
+                        trip.setHasRestViolation(false);
+                        trip.setViolationMessage(null);
+                    }
+                }
+            } else {
+                // Se não há viagens anteriores, assume que está descansado (ou recém-chegado da base)
+                trip.setHasRestViolation(false);
+                trip.setViolationMessage(null);
             }
         }
     }
@@ -245,6 +273,7 @@ public class TripService {
         if (tripUpdate.getStatus() != null)
             trip.setStatus(tripUpdate.getStatus());
 
+        validateBusinessRules(trip);
         return tripRepository.save(trip);
     }
 
