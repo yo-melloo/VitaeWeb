@@ -43,4 +43,24 @@ public class ServiceController {
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());
     }
+
+    @CrossOrigin(origins = "*")
+    @PostMapping(value = "/sequence", consumes = "application/json")
+    public ResponseEntity<Void> updateSequences(@RequestBody List<ServiceSequenceUpdate> updates) {
+        for (ServiceSequenceUpdate update : updates) {
+            serviceRepository.findById(update.getId()).ifPresent(service -> {
+                service.setCirandaSequence(update.getSequence());
+                service.setOutOfSequence(update.getOutOfSequence());
+                serviceRepository.save(service);
+            });
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @lombok.Data
+    public static class ServiceSequenceUpdate {
+        private Long id;
+        private Integer sequence;
+        private Boolean outOfSequence;
+    }
 }
