@@ -92,6 +92,11 @@ public class TripController {
             Long driverId = Long.valueOf(payload.get("driverId").toString());
             driverRepository.findById(driverId).ifPresent(trip::setDriver);
         }
+        
+        if (payload.get("secondaryDriverId") != null) {
+            Long secDriverId = Long.valueOf(payload.get("secondaryDriverId").toString());
+            driverRepository.findById(secDriverId).ifPresent(trip::setSecondaryDriver);
+        }
 
         if (payload.get("segmentId") != null) {
             Long segmentId = Long.valueOf(payload.get("segmentId").toString());
@@ -143,6 +148,11 @@ public class TripController {
         if (payload.get("driverId") != null) {
             Long driverId = Long.valueOf(payload.get("driverId").toString());
             driverRepository.findById(driverId).ifPresent(tripUpdate::setDriver);
+        }
+
+        if (payload.get("secondaryDriverId") != null) {
+            Long secDriverId = Long.valueOf(payload.get("secondaryDriverId").toString());
+            driverRepository.findById(secDriverId).ifPresent(tripUpdate::setSecondaryDriver);
         }
 
         if (payload.get("segmentId") != null) {
@@ -240,6 +250,14 @@ public class TripController {
                     .id(trip.getDriver().getId())
                     .name(trip.getDriver().getName())
                     .matricula(trip.getDriver().getMatricula())
+                    .build());
+        }
+
+        if (trip.getSecondaryDriver() != null) {
+            builder.secondaryDriver(TripDTO.DriverDTO.builder()
+                    .id(trip.getSecondaryDriver().getId())
+                    .name(trip.getSecondaryDriver().getName())
+                    .matricula(trip.getSecondaryDriver().getMatricula())
                     .build());
         }
 

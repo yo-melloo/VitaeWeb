@@ -38,4 +38,8 @@ public class Service extends BaseAuditEntity {
     @Column(name = "out_of_sequence")
     @Builder.Default
     private Boolean outOfSequence = false;
+
+    @Column(name = "is_double_driven")
+    @Builder.Default
+    private Boolean isDoubleDriven = false;
 }

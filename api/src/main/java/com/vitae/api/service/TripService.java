@@ -29,6 +29,9 @@ public class TripService {
     @Autowired
     private CirandaService cirandaService;
 
+    @Autowired
+    private com.vitae.api.repository.ServiceRepository serviceRepository;
+
     public Trip createTrip(Trip trip) {
         validateBusinessRules(trip);
         return tripRepository.save(trip);
@@ -210,9 +213,21 @@ public class TripService {
 
     private void validateBusinessRules(Trip trip) {
         Driver driver = trip.getDriver();
+        Long serviceId = trip.getServiceId();
+
+        // 1. Limite por Serviço (Regra da Empresa)
+        // Se o serviço EXIGE dupla e a viagem é solo, gera violação.
+        if (serviceId != null && trip.getSecondaryDriver() == null) {
+            serviceRepository.findById(serviceId).ifPresent(srv -> {
+                if (srv.getIsDoubleDriven()) {
+                    trip.setHasRestViolation(true);
+                    trip.setViolationMessage("Escala Irregular: Este serviço EXIGE segundo motorista (Dupla).");
+                }
+            });
+        }
 
         if (driver != null) {
-            // 1. Lógica de Dobra (Ciclo de 7 dias)
+            // 2. Lógica de Dobra (Ciclo de 7 dias)
             int cycleDays = cirandaService.calculateCycleDays(driver.getId(), trip.getDepartureTime());
             System.out.println("DEBUG: Driver " + driver.getName() + " cycleDays: " + cycleDays + " for trip at " + trip.getDepartureTime());
             // Se já trabalhou 6 dias, esta viagem é o 7º dia (Dobra)
@@ -238,17 +253,20 @@ public class TripService {
                         trip.setHasRestViolation(true);
                         long hours = minutesRest / 60;
                         long mins = minutesRest % 60;
-                        trip.setViolationMessage(String.format("Descanso insuficiente: apenas %dh %02dmin (Mínimo 11h)", hours, mins));
-                    } else {
-                        trip.setHasRestViolation(false);
-                        trip.setViolationMessage(null);
-                    }
+                        String msg = String.format("Descanso insuficiente: apenas %dh %02dmin (Mínimo 11h)", hours, mins);
+                        if (trip.getViolationMessage() == null) {
+                            trip.setViolationMessage(msg);
+                        } else {
+                            trip.setViolationMessage(trip.getViolationMessage() + " | " + msg);
+                        }
+                    } 
                 }
-            } else {
-                // Se não há viagens anteriores, assume que está descansado (ou recém-chegado da base)
-                trip.setHasRestViolation(false);
-                trip.setViolationMessage(null);
-            }
+            } 
+        }
+
+        // Reset violation flags if no violations found (and message wasn't set by previous checks)
+        if (trip.getViolationMessage() == null) {
+            trip.setHasRestViolation(false);
         }
     }
 
@@ -259,11 +277,17 @@ public class TripService {
 
         if (tripUpdate.getDriver() != null) {
             trip.setDriver(tripUpdate.getDriver());
-            // Se atribuiu motorista manual, garante que ele está ESCALADO se a viagem for
-            // hoje/em progresso
             if (trip.getStatus() == TripStatus.IN_PROGRESS || trip.getStatus() == TripStatus.SCHEDULED) {
                 trip.getDriver().setStatus(DriverStatus.ESCALADO);
                 driverRepository.save(trip.getDriver());
+            }
+        }
+
+        if (tripUpdate.getSecondaryDriver() != null) {
+            trip.setSecondaryDriver(tripUpdate.getSecondaryDriver());
+            if (trip.getStatus() == TripStatus.IN_PROGRESS || trip.getStatus() == TripStatus.SCHEDULED) {
+                trip.getSecondaryDriver().setStatus(DriverStatus.ESCALADO);
+                driverRepository.save(trip.getSecondaryDriver());
             }
         }
         if (tripUpdate.getSegment() != null)

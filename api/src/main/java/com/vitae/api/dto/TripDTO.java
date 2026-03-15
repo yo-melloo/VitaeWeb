@@ -27,6 +27,7 @@ public class TripDTO {
     private LocalDateTime actualArrivalTime;
     private SegmentDTO segment;
     private DriverDTO driver;
+    private DriverDTO secondaryDriver;
     private VehicleDTO vehicle;
     private String updatedBy;
     private LocalDateTime updatedAt;

@@ -32,6 +32,10 @@ public class Trip extends BaseAuditEntity {
     private Driver driver;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "secondary_driver_id")
+    private Driver secondaryDriver;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
 

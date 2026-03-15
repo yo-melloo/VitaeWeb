@@ -5,6 +5,7 @@ const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 const TripForm = ({ onCancel, onSave, onNotify, initialData = null, user }) => {
   const [formData, setFormData] = useState({
     driverId: initialData?.driver?.id || "",
+    secondaryDriverId: initialData?.secondaryDriver?.id || "",
     serviceId: initialData?.serviceId || "",
     segmentId: initialData?.segment?.id || "",
     departureDate: initialData?.departureTime
@@ -117,12 +118,26 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null, user }) => {
 
   const validateRules = () => {
     const newAlerts = [];
+    
+    const segment = segments.find(
+      (s) => String(s.id) === String(formData.segmentId),
+    );
+
+    // 1. Regra de Dupla por Serviço (Regra da Empresa)
+    if (!formData.secondaryDriverId && selectedService?.isDoubleDriven) {
+      newAlerts.push({
+        type: "danger",
+        title: "⚠️ Serviço EXIGE Dupla",
+        message: `Este serviço (${selectedService.code}) está configurado para operar obrigatoriamente com dois motoristas.`,
+      });
+    }
+
     if (
       !formData.driverId ||
       !formData.departureDate ||
       !formData.departureTime
     ) {
-      setAlerts([]);
+      setAlerts(newAlerts);
       return;
     }
 
@@ -189,6 +204,7 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null, user }) => {
       const departureTime = `${formData.departureDate}T${formData.departureTime}:00`;
       const payload = {
         driverId: Number(formData.driverId),
+        secondaryDriverId: formData.secondaryDriverId ? Number(formData.secondaryDriverId) : null,
         segmentId: Number(formData.segmentId),
         serviceId: formData.serviceId ? Number(formData.serviceId) : null,
         vehicleId: formData.vehicleId ? Number(formData.vehicleId) : null,
@@ -290,6 +306,44 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null, user }) => {
           )}
         </div>
 
+        {/* Secondary Driver - Only show/require if service is double driven or already has a secondary driver */}
+        {(selectedService?.isDoubleDriven || formData.secondaryDriverId) && (
+          <div className="pt-2 border-t border-slate-700/50 animate-in slide-in-from-top-2 duration-300">
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex justify-between items-center">
+              <span>{selectedService?.isDoubleDriven ? "Segundo Motorista (OBRIGATÓRIO)" : "Segundo Motorista (OPCIONAL)"}</span>
+              {!formData.secondaryDriverId && !selectedService?.isDoubleDriven && (
+                <span className="text-slate-600 font-normal italic">Escala Solo</span>
+              )}
+            </label>
+            <select
+              className={`w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:ring-2 focus:ring-sky-500 transition-all outline-none ${!formData.secondaryDriverId ? 'opacity-70' : ''}`}
+              value={formData.secondaryDriverId}
+              onChange={(e) =>
+                setFormData({ ...formData, secondaryDriverId: e.target.value })
+              }
+            >
+              <option value="">{selectedService?.isDoubleDriven ? "Selecione o segundo motorista..." : "Nenhum (Solo)"}</option>
+              {drivers
+                .filter(d => String(d.id) !== String(formData.driverId))
+                .map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+            {formData.secondaryDriverId && (
+              <p className="mt-1 text-[10px] text-sky-400 font-black uppercase">
+                ✨ VIAGEM EM DUPLA CONFIRMADA
+              </p>
+            )}
+            {selectedService?.isDoubleDriven && !formData.secondaryDriverId && (
+              <p className="mt-1 text-[10px] text-rose-500 font-black uppercase flex items-center gap-1">
+                <span>⚠️ Alocação obrigatória para este serviço</span>
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Service + Segment */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -338,8 +392,8 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null, user }) => {
               {segments.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.origin} → {s.destination}
-                  {s.durationMinutes
-                    ? ` (~${Math.round(s.durationMinutes / 60)}h)`
+                  {s.estimatedDurationMinutes
+                    ? ` (~${Math.round(s.estimatedDurationMinutes / 60)}h)`
                     : ""}
                 </option>
               ))}
