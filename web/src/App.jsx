@@ -15,6 +15,7 @@ import Notification from "./components/Notification";
 import Login from "./components/Login";
 import DriverMobileSchedule from "./components/DriverMobileSchedule";
 import BaseManagement from "./components/BaseManagement";
+import ServiceSequence from "./components/ServiceSequence";
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -72,6 +73,30 @@ const Sidebar = ({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             )}
           </p>
+
+          {/* System Clock in Sidebar */}
+          <div className="mt-4 py-2 border-y border-slate-700/50">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+              Data & Hora
+            </p>
+            <div className="flex items-center gap-2 text-slate-300">
+              <span className="text-xs font-bold">
+                {new Date()
+                  .toLocaleDateString("pt-BR", {
+                    day: "2-digit",
+                    month: "short",
+                  })
+                  .replace(".", "")}
+              </span>
+              <span className="text-slate-600">|</span>
+              <span className="text-xs font-mono font-black text-sky-400">
+                {new Date().toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+          </div>
         </div>
 
         <nav className="flex-1 px-4 space-y-2 mt-4">
@@ -92,12 +117,39 @@ const Sidebar = ({
           )}
 
           {isOperator && (
-            <NavItem
-              icon="🛣️"
-              label="Rotas"
-              active={activeTab === "routes"}
-              onClick={() => handleNavClick("routes")}
-            />
+            <div className="space-y-1">
+              <NavItem
+                icon="🛣️"
+                label="Rotas"
+                active={activeTab === "routes" || activeTab === "sequence"}
+                onClick={() => handleNavClick("routes")}
+              />
+              <div
+                className={`grid transition-all duration-300 ease-in-out ${
+                  activeTab === "routes" || activeTab === "sequence"
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                }`}
+              >
+                <div className="overflow-hidden">
+                  <div className="ml-9 border-l border-slate-700/50 pl-4 space-y-1 py-1">
+                    <NavItem
+                      label="Gerenciar"
+                      small
+                      active={activeTab === "routes"}
+                      onClick={() => handleNavClick("routes")}
+                    />
+                    <NavItem
+                      label="Sequência"
+                      small
+                      active={activeTab === "sequence"}
+                      onClick={() => handleNavClick("sequence")}
+                      badge="BETA"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {isOperator && (
@@ -118,44 +170,52 @@ const Sidebar = ({
             />
           )}
 
-          <NavItem
-            icon="📅"
-            label={isDriver ? "Minhas Escalas" : "Escalas"}
-            active={
-              activeTab === "trips" ||
-              activeTab === "new-trip" ||
-              activeTab === "sequence"
-            }
-            onClick={() => handleNavClick(isDriver ? "reports" : "trips")}
-          />
-
-          {!isDriver &&
-            (activeTab === "trips" ||
-              activeTab === "reports" ||
-              activeTab === "sequence" ||
-              activeTab === "new-trip") && (
-              <div className="ml-9 border-l border-slate-700 pl-4 space-y-1 mb-2 animate-in slide-in-from-left-2 duration-300">
-                <NavItem
-                  label="Visão Geral"
-                  small
-                  active={activeTab === "trips"}
-                  onClick={() => handleNavClick("trips")}
-                />
-                <NavItem
-                  label="Relatórios"
-                  small
-                  active={activeTab === "reports"}
-                  onClick={() => handleNavClick("reports")}
-                />
-                <NavItem
-                  label="Sequência"
-                  small
-                  active={activeTab === "sequence"}
-                  onClick={() => handleNavClick("sequence")}
-                  badge="BETA"
-                />
+          <div className="space-y-1">
+            <NavItem
+              icon="📅"
+              label={isDriver ? "Minhas Escalas" : "Escalas"}
+              active={
+                activeTab === "trips" ||
+                activeTab === "reports" ||
+                activeTab === "new-trip"
+              }
+              onClick={() => handleNavClick(isDriver ? "reports" : "trips")}
+            />
+            <div
+              className={`grid transition-all duration-300 ease-in-out ${
+                activeTab === "trips" ||
+                activeTab === "reports" ||
+                activeTab === "new-trip"
+                  ? "grid-rows-[1fr] opacity-100"
+                  : "grid-rows-[0fr] opacity-0 pointer-events-none"
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="ml-9 border-l border-slate-700/50 pl-4 space-y-1 py-1">
+                  <NavItem
+                    label="Visão Geral"
+                    small
+                    active={activeTab === "trips"}
+                    onClick={() => handleNavClick("trips")}
+                  />
+                  <NavItem
+                    label="Relatórios"
+                    small
+                    active={activeTab === "reports"}
+                    onClick={() => handleNavClick("reports")}
+                  />
+                  {isOperator && (
+                    <NavItem
+                      label="Nova Escala"
+                      small
+                      active={activeTab === "new-trip"}
+                      onClick={() => handleNavClick("new-trip")}
+                    />
+                  )}
+                </div>
               </div>
-            )}
+            </div>
+          </div>
 
           {isAdmin && (
             <>
@@ -336,6 +396,7 @@ const Dashboard = ({
   const [trips, setTrips] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  // clock moved to parent or side effect not needed if we re-render APP
 
   const notify = onNotify;
   const [errorModal, setErrorModal] = useState({
@@ -381,7 +442,28 @@ const Dashboard = ({
         const sorted = mapped.sort(
           (a, b) => new Date(a.departureTime) - new Date(b.departureTime),
         );
-        setTrips(sorted);
+
+        // Filter for "Próximas Saídas": Today + Not yet finished/past
+        const now = new Date();
+        const endOfToday = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          23,
+          59,
+          59,
+        );
+        const filtered = sorted.filter((t) => {
+          const dep = new Date(t.departureTime);
+          return (
+            dep >= now &&
+            dep <= endOfToday &&
+            t.status !== "FINISHED" &&
+            t.status !== "CANCELLED"
+          );
+        });
+
+        setTrips(filtered);
       } catch (err) {
         console.error("Error fetching trips:", err);
       }
@@ -591,62 +673,19 @@ const Dashboard = ({
                   />
                 ))
               ) : (
-                <>
-                  <TableRow
-                    driver="Carlos Alberto"
-                    route="SP → RJ (Expresso)"
-                    time="14:30"
-                    vehicle="Scania G-230"
-                    status="Embarcando"
-                    statusColor="text-emerald-400"
-                    onCancel={() => notify("Cancelando Serviço...", "warning")}
-                    onDelay={() =>
-                      notify(
-                        "Relatando Atraso: Esta ação impactará as próximas viagens deste motorista e veículo.",
-                        "error",
-                      )
-                    }
-                    isOperator={isOperator}
-                  />
-                  <TableRow
-                    driver="Mariana Silva"
-                    route="RJ → BH"
-                    time="15:00"
-                    vehicle="Volvo FH-400"
-                    status="Impactada"
-                    statusColor="text-amber-400"
-                    isImpacted={true}
-                    isOperator={isOperator}
-                    onOpenMap={(org, dst) =>
-                      setMapData({
-                        isOpen: true,
-                        origin: "Rio de Janeiro",
-                        destination: "Belo Horizonte",
-                      })
-                    }
-                  />
-                  <TableRow
-                    driver="Ricardo Souza"
-                    route="CUR → SP"
-                    time="15:45"
-                    vehicle="Mercedes-Benz O500"
-                    status="Atrasado"
-                    statusColor="text-rose-400"
-                    onClearDelay={() =>
-                      notify(
-                        "Revertendo atraso e limpando impactos subsequentes...",
-                      )
-                    }
-                    isOperator={isOperator}
-                    onOpenMap={(org, dst) =>
-                      setMapData({
-                        isOpen: true,
-                        origin: "Curitiba",
-                        destination: "São Paulo",
-                      })
-                    }
-                  />
-                </>
+                <tr>
+                  <td colSpan="8" className="py-20 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-600">
+                      <span className="text-4xl mb-3">🛣️</span>
+                      <p className="text-sm font-medium">
+                        Nenhuma saída programada para o restante do dia.
+                      </p>
+                      <p className="text-[10px] uppercase font-black tracking-widest mt-1 opacity-50 text-slate-500">
+                        Operação em dia
+                      </p>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -779,6 +818,12 @@ const App = () => {
   const [editingUser, setEditingUser] = useState(null);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -989,13 +1034,16 @@ const App = () => {
               }}
             />
           )}
-          {activeTab === "trips" && isOperator && (
+          {activeTab === "trips" && (
             <ScheduleManagement
               isOperator={isOperator}
               user={user}
               onNotify={notify}
               onSelectDriver={handleSelectDriver}
             />
+          )}
+          {activeTab === "sequence" && isOperator && (
+            <ServiceSequence onNotify={notify} />
           )}
         </div>
       </main>
