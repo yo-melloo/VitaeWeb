@@ -22,9 +22,23 @@ public class BatchScheduleController {
     @Autowired
     private TripController tripController;
 
-    @PostMapping("/generate")
+    @CrossOrigin(origins = "*")
+    @PostMapping(value = "/generate", consumes = "application/json", produces = "application/json")
     public ResponseEntity<List<TripDTO>> generateBatch(@RequestBody BatchScheduleRequest request) {
         List<Trip> trips = batchScheduleService.generateBatch(request);
+        List<TripDTO> dtos = trips.stream()
+                .map(tripController::convertToDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    @CrossOrigin(origins = "*")
+    @PostMapping(value = "/generate/all", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<List<TripDTO>> generateAll(@RequestBody BatchScheduleRequest request) {
+        List<Trip> trips = batchScheduleService.generateAllSequenced(
+                request.getStartDate(),
+                request.getEndDate(),
+                request.getDefaultDepartureTime());
         List<TripDTO> dtos = trips.stream()
                 .map(tripController::convertToDTO)
                 .collect(Collectors.toList());
