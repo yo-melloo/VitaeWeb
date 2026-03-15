@@ -187,11 +187,11 @@ public class CirandaService {
         for (Trip trip : trips) {
             LocalDateTime departure = trip.getDepartureTime();
             LocalDateTime arrival = (trip.getActualArrivalTime() != null) ? trip.getActualArrivalTime()
-                    : trip.getArrivalTime();
+                    : (trip.getArrivalTime() != null ? trip.getArrivalTime() : trip.getDepartureTime());
 
             // Se houve um gap de 36h entre esta viagem e a próxima (na cronologia), o ciclo
             // resetou.
-            if (ChronoUnit.HOURS.between(arrival, lastReference) >= 36) {
+            if (arrival != null && ChronoUnit.HOURS.between(arrival, lastReference) >= 36) {
                 break;
             }
 

@@ -214,8 +214,12 @@ public class TripService {
         if (driver != null) {
             // 1. Lógica de Dobra (Ciclo de 7 dias)
             int cycleDays = cirandaService.calculateCycleDays(driver.getId(), trip.getDepartureTime());
-            if (cycleDays >= 7) {
+            System.out.println("DEBUG: Driver " + driver.getName() + " cycleDays: " + cycleDays + " for trip at " + trip.getDepartureTime());
+            // Se já trabalhou 6 dias, esta viagem é o 7º dia (Dobra)
+            if (cycleDays >= 6) {
                 trip.setIsDobra(true);
+            } else {
+                trip.setIsDobra(false);
             }
 
             // 2. Lógica de Interjornada (11h de descanso)

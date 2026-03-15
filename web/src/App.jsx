@@ -16,6 +16,7 @@ import Login from "./components/Login";
 import DriverMobileSchedule from "./components/DriverMobileSchedule";
 import BaseManagement from "./components/BaseManagement";
 import ServiceSequence from "./components/ServiceSequence";
+import DobraPanel from "./components/DobraPanel";
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -212,12 +213,19 @@ const Sidebar = ({
             >
               <div className="overflow-hidden">
                 <div className="ml-9 border-l border-slate-700/50 pl-4 space-y-1 py-1">
-                  <NavItem
-                    label="Visão Geral"
-                    small
-                    active={activeTab === "trips"}
-                    onClick={() => handleNavClick("trips")}
-                  />
+                    <NavItem
+                      label="Visão Geral"
+                      small
+                      active={activeTab === "trips"}
+                      onClick={() => handleNavClick("trips")}
+                    />
+                    <NavItem
+                      label="Dobras"
+                      small
+                      active={activeTab === "dobras"}
+                      onClick={() => handleNavClick("dobras")}
+                      badge="NOVO"
+                    />
                   <NavItem
                     label="Relatórios"
                     small
@@ -1098,6 +1106,9 @@ const App = () => {
           )}
           {activeTab === "sequence" && isOperator && (
             <ServiceSequence onNotify={notify} />
+          )}
+          {activeTab === "dobras" && isOperator && (
+            <DobraPanel onNotify={notify} />
           )}
         </div>
       </main>
