@@ -26,6 +26,9 @@ public class TripService {
     @Autowired
     private com.vitae.api.repository.VehicleRepository vehicleRepository;
 
+    @Autowired
+    private CirandaService cirandaService;
+
     public Trip createTrip(Trip trip) {
         validateBusinessRules(trip);
         return tripRepository.save(trip);
@@ -36,16 +39,22 @@ public class TripService {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found"));
 
-        trip.setStatus(TripStatus.DELAYED);
+        // Only change status if it hasn't started yet.
+        if (trip.getStatus() == TripStatus.SCHEDULED) {
+            trip.setStatus(TripStatus.DELAYED);
+        }
+
+        // Mark THIS trip as impacted too
+        trip.setIsImpacted(true);
         Trip savedTrip = tripRepository.save(trip);
 
         // Propagate impact to next segment of the same service on the same day
         LocalDateTime startOfDay = trip.getDepartureTime().toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = trip.getDepartureTime().toLocalDate().atTime(23, 59, 59);
 
-        tripRepository.findByServiceIdAndDepartureTimeBetween(trip.getServiceId(), startOfDay, endOfDay)
+        tripRepository.findByServiceIdAndDepartureTimeBetween(savedTrip.getServiceId(), startOfDay, endOfDay)
                 .stream()
-                .filter(t -> t.getDepartureTime().isAfter(trip.getDepartureTime()))
+                .filter(t -> t.getDepartureTime().isAfter(savedTrip.getDepartureTime()))
                 .sorted(java.util.Comparator.comparing(Trip::getDepartureTime))
                 .findFirst().ifPresent(next -> {
                     next.setIsImpacted(true);
@@ -53,9 +62,9 @@ public class TripService {
                 });
 
         // Propagate impact to next vehicle trip on the same day
-        if (trip.getVehicle() != null) {
+        if (savedTrip.getVehicle() != null) {
             tripRepository.findByVehicleIdAndDepartureTimeAfterOrderByDepartureTimeAsc(
-                    trip.getVehicle().getId(), trip.getDepartureTime())
+                    savedTrip.getVehicle().getId(), savedTrip.getDepartureTime())
                     .stream()
                     .filter(t -> t.getDepartureTime().isBefore(endOfDay.plusNanos(1)))
                     .findFirst().ifPresent(next -> {
@@ -72,8 +81,20 @@ public class TripService {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found"));
 
-        trip.setStatus(TripStatus.SCHEDULED);
-        trip.setIsImpacted(false); // A delayed trip can also be impacted, so we clear both
+        // Clear impact on this trip
+        trip.setIsImpacted(false);
+
+        // If it was DELAYED, check where it should go back to
+        if (trip.getStatus() == TripStatus.DELAYED) {
+            // Presentation time: 1h before departure
+            LocalDateTime presentationTime = trip.getDepartureTime().minusHours(1);
+            if (LocalDateTime.now().isAfter(presentationTime)) {
+                trip.setStatus(TripStatus.IN_PROGRESS);
+            } else {
+                trip.setStatus(TripStatus.SCHEDULED);
+            }
+        }
+
         Trip savedTrip = tripRepository.save(trip);
 
         // Try to clear impact on next service trip on the same day
@@ -190,9 +211,12 @@ public class TripService {
     private void validateBusinessRules(Trip trip) {
         Driver driver = trip.getDriver();
 
-        // 1. Dobra Logic: > 7 days in saldoDias
-        if (driver != null && driver.getSaldoDias() != null && driver.getSaldoDias() > 7) {
-            trip.setIsDobra(true);
+        if (driver != null) {
+            // New Cycle Logic: > 6 days means finishing on 7th or already on 7th
+            int cycleDays = cirandaService.calculateCycleDays(driver.getId(), trip.getDepartureTime());
+            if (cycleDays >= 7) {
+                trip.setIsDobra(true);
+            }
         }
     }
 
@@ -254,7 +278,9 @@ public class TripService {
         LocalDateTime now = LocalDateTime.now();
         List<Trip> scheduledTrips = tripRepository.findAll().stream()
                 .filter(trip -> (trip.getStatus() == TripStatus.SCHEDULED || trip.getStatus() == TripStatus.DELAYED))
-                .filter(trip -> trip.getDepartureTime().isBefore(now) || trip.getDepartureTime().isEqual(now))
+                // Presentation time (horário de apresentação) is 1h before departure
+                .filter(trip -> trip.getDepartureTime().minusHours(1).isBefore(now)
+                        || trip.getDepartureTime().minusHours(1).isEqual(now))
                 .toList();
 
         for (Trip trip : scheduledTrips) {
