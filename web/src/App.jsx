@@ -20,6 +20,12 @@ import DobraPanel from "./components/DobraPanel";
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
+// Cache global para otimização de performance (Simulação de SWR)
+const dataCache = {
+  trips: null,
+  lastFetched: null
+};
+
 // Returns "Bom dia", "Boa tarde" or "Boa noite" based on current hour
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -465,7 +471,14 @@ const Dashboard = ({
     });
 
     const fetchTrips = async () => {
-      setLoading(true);
+      // Se já temos dados no cache, usamos eles e carregamos em background (SWR style)
+      if (dataCache.trips) {
+        setTrips(dataCache.trips);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       try {
         const res = await fetch(`${API}/api/trips`);
         if (!res.ok) {
@@ -498,6 +511,9 @@ const Dashboard = ({
         });
 
         setTrips(filtered);
+        // Atualiza o cache global
+        dataCache.trips = filtered;
+        dataCache.lastFetched = new Date();
       } catch (err) {
         console.error("Error fetching trips:", err);
       } finally {
