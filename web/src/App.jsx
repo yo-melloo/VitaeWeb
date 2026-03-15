@@ -498,6 +498,10 @@ const Dashboard = ({
     };
 
     fetchTrips();
+
+    // Polling: Atualiza os dados a cada 30 segundos para manter os cards vivos
+    const interval = setInterval(fetchTrips, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleCancel = (trip) => {
@@ -1121,7 +1125,7 @@ const App = () => {
         <Notification
           message={notification.message}
           type={notification.type}
-          onClose={() => setNotification(null)}
+          onClose={useCallback(() => setNotification(null), [])}
         />
       )}
     </div>
