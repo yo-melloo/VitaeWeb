@@ -169,13 +169,31 @@ public class TripService {
 
         trip.setActualArrivalTime(actualArrival != null ? actualArrival : LocalDateTime.now());
         trip.setStatus(TripStatus.FINISHED);
+        tripRepository.saveAndFlush(trip); // Garante que a viagem finalizada seja vista pelo cálculo ciclico
 
         if (trip.getDriver() != null) {
             Driver driver = trip.getDriver();
             driver.setStatus(DriverStatus.FOLGA);
             driver.setLastStatusChange(LocalDateTime.now());
+            
+            // Recalcula saldo de dias considerando a viagem recém finalizada
+            int cycle = cirandaService.calculateCycleDays(driver.getId(), trip.getActualArrivalTime().plusMinutes(1));
+            driver.setSaldoDias(cycle);
+            
             driverRepository.save(driver);
         }
+
+        if (trip.getSecondaryDriver() != null) {
+            Driver sDriver = trip.getSecondaryDriver();
+            sDriver.setStatus(DriverStatus.FOLGA);
+            sDriver.setLastStatusChange(LocalDateTime.now());
+            
+            int cycle = cirandaService.calculateCycleDays(sDriver.getId(), trip.getActualArrivalTime().plusMinutes(1));
+            sDriver.setSaldoDias(cycle);
+            
+            driverRepository.save(sDriver);
+        }
+
         if (trip.getVehicle() != null) {
             trip.getVehicle().setStatus(com.vitae.api.model.Vehicle.VehicleStatus.AVAILABLE);
             vehicleRepository.save(trip.getVehicle());
@@ -196,11 +214,27 @@ public class TripService {
 
         trip.setStatus(TripStatus.IN_PROGRESS);
         trip.setActualArrivalTime(null);
+        tripRepository.saveAndFlush(trip); // Persiste para o cálculo de ciclo refletir a reversão
 
         if (trip.getDriver() != null) {
             Driver driver = trip.getDriver();
             driver.setStatus(DriverStatus.ESCALADO);
+            
+            // Recalcula saldo voltando ao momento da partida
+            int cycle = cirandaService.calculateCycleDays(driver.getId(), trip.getDepartureTime().plusMinutes(1));
+            driver.setSaldoDias(cycle);
+            
             driverRepository.save(driver);
+        }
+
+        if (trip.getSecondaryDriver() != null) {
+            Driver sDriver = trip.getSecondaryDriver();
+            sDriver.setStatus(DriverStatus.ESCALADO);
+            
+            int cycle = cirandaService.calculateCycleDays(sDriver.getId(), trip.getDepartureTime().plusMinutes(1));
+            sDriver.setSaldoDias(cycle);
+            
+            driverRepository.save(sDriver);
         }
 
         if (trip.getVehicle() != null) {

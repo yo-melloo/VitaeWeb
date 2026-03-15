@@ -108,9 +108,10 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void seedServices() {
-        Service s1 = Service.builder().code("2261").name("Goiânia x São Luís").build();
-        Service s2 = Service.builder().code("2103").name("Expresso Regional").build();
-        serviceRepository.saveAll(Arrays.asList(s1, s2));
+        Service s1 = Service.builder().code("2261").name("SLZ x GYN (Operação Dupla)").isDoubleDriven(true).build();
+        Service s2 = Service.builder().code("2103").name("Expresso Regional (Solo)").isDoubleDriven(false).build();
+        Service s3 = Service.builder().code("1072").name("IMP x GYN (Operação Dupla)").isDoubleDriven(true).build();
+        serviceRepository.saveAll(Arrays.asList(s1, s2, s3));
     }
 
     private void seedDrivers(Base base) {
@@ -128,7 +129,15 @@ public class DataInitializer implements CommandLineRunner {
                 .status(Driver.DriverStatus.DISPONIVEL)
                 .saldoDias(2)
                 .build();
-        driverRepository.saveAll(Arrays.asList(d1, d2));
+        Driver d3 = Driver.builder()
+                .name("JOÃO RICARDO")
+                .matricula("1003")
+                .base(base)
+                .status(Driver.DriverStatus.FOLGA)
+                .lastStatusChange(java.time.LocalDateTime.now().minusHours(40)) // Simula reset de 36h
+                .saldoDias(5)
+                .build();
+        driverRepository.saveAll(Arrays.asList(d1, d2, d3));
     }
 
     private void seedVehicles() {

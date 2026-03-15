@@ -97,6 +97,7 @@ public class DriverService {
         for (Driver driver : restingDrivers) {
             if (driver.getLastStatusChange() != null && driver.getLastStatusChange().isBefore(restingThreshold)) {
                 driver.setStatus(DriverStatus.DISPONIVEL);
+                driver.setSaldoDias(0); // Reset do ciclo de trabalho (Regra 36h)
                 driver.setLastStatusChange(now);
                 driverRepository.save(driver);
             }
