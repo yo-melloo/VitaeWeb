@@ -89,7 +89,6 @@ const LiveMonitor = ({ onNavigate, isOperator }) => {
           vehiclesRes.json(),
         ]);
 
-        const trips = tripsData.map(mapTripFromApi);
         const today = new Date();
         const startOfDay = new Date(
           today.getFullYear(),
@@ -99,7 +98,7 @@ const LiveMonitor = ({ onNavigate, isOperator }) => {
           0,
           0,
         );
-        const endOfDay = new Date(
+        const endOfToday = new Date(
           today.getFullYear(),
           today.getMonth(),
           today.getDate(),
@@ -108,14 +107,21 @@ const LiveMonitor = ({ onNavigate, isOperator }) => {
           59,
         );
 
+        // Filter trips for TODAY ONLY for all stats
         const tripsToday = tripsData.filter((t) => {
           if (!t.departureTime) return false;
           const d = new Date(t.departureTime);
-          return d >= startOfDay && d <= endOfDay;
+          return d >= startOfDay && d <= endOfToday;
         });
 
-        const onTrip = trips.filter((t) => t.status === "IN_PROGRESS").length;
-        const inPasse = trips.filter((t) => t.status === "PASSE").length;
+        const mappedTripsToday = tripsToday.map(mapTripFromApi);
+
+        const onTrip = mappedTripsToday.filter(
+          (t) => t.status === "IN_PROGRESS",
+        ).length;
+        const inPasse = mappedTripsToday.filter(
+          (t) => t.status === "PASSE",
+        ).length;
         const available = driversData.filter(
           (d) => d.status === "DISPONIVEL",
         ).length;
@@ -148,13 +154,13 @@ const LiveMonitor = ({ onNavigate, isOperator }) => {
             ? Math.round((onTripVehicles / totalVehicles) * 100)
             : 0;
 
-        const active = trips.filter(
+        const activeToday = mappedTripsToday.filter(
           (t) =>
             t.status === "IN_PROGRESS" ||
             t.status === "DELAYED" ||
             t.status === "PASSE",
         );
-        setActiveTrips(active);
+        setActiveTrips(activeToday);
 
         // Auto-collapse if no trips are in progress
         if (active.length === 0) {
