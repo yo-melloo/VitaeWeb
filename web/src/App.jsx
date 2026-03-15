@@ -443,8 +443,8 @@ const Dashboard = ({
   useEffect(() => {
     const mapTripFromApi = (trip) => ({
       id: trip.id,
-      // Normalize serviceId to string so grouping works correctly
-      serviceCode: trip.serviceId != null ? String(trip.serviceId) : null,
+      serviceCode: trip.serviceCode,
+      routeName: trip.routeName,
       route: trip.segment
         ? `${trip.segment.origin} x ${trip.segment.destination}`
         : "",
@@ -457,6 +457,10 @@ const Dashboard = ({
             origin: trip.segment.origin,
             destination: trip.segment.destination,
             base: trip.segment.base,
+            hasError: trip.segment.hasError,
+            errorMessage: trip.segment.errorMessage,
+            errorReportedBy: trip.segment.errorReportedBy,
+            errorReportedAt: trip.segment.errorReportedAt,
           }
         : {},
       departureTime: trip.departureTime,
@@ -492,6 +496,7 @@ const Dashboard = ({
 
         // Filter for "Próximas Saídas": Today + Not yet finished/past
         const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const endOfToday = new Date(
           now.getFullYear(),
           now.getMonth(),
@@ -502,9 +507,13 @@ const Dashboard = ({
         );
         const filtered = sorted.filter((t) => {
           const dep = new Date(t.departureTime);
+          // Mostrar se:
+          // 1. Partida é hoje
+          // 2. E (Ainda não saiu OU está em andamento/atrasado/passe)
+          // 3. E não está finalizada ou cancelada
           return (
-            dep.toLocaleDateString() === now.toLocaleDateString() && // Simplified check for "today"
-            dep >= now &&
+            dep >= startOfToday && dep <= endOfToday &&
+            (dep >= now || ["IN_PROGRESS", "DELAYED", "PASSE"].includes(t.status)) &&
             t.status !== "FINISHED" &&
             t.status !== "CANCELLED"
           );
