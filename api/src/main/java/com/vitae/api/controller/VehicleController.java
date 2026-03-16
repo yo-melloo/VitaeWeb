@@ -36,6 +36,7 @@ public class VehicleController {
     @PutMapping("/{id}")
     public ResponseEntity<Vehicle> updateVehicle(@PathVariable Long id, @RequestBody Vehicle vehicleDetails) {
         return vehicleRepository.findById(id).map(vehicle -> {
+            vehicle.setPrefix(vehicleDetails.getPrefix());
             vehicle.setPlate(vehicleDetails.getPlate());
             vehicle.setModel(vehicleDetails.getModel());
             vehicle.setCapacity(vehicleDetails.getCapacity());

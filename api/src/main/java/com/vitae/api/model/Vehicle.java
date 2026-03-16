@@ -21,9 +21,9 @@ public class Vehicle extends BaseAuditEntity {
 
     @NotBlank
     @Column(unique = true, nullable = false)
-    private String plate;
-
     private String prefix;
+
+    private String plate;
 
     @NotBlank
     private String model;

@@ -17,7 +17,7 @@ const VehicleManagement = ({ onNotify }) => {
         throw new Error("Falha ao carregar frota");
       }
       const data = await response.json();
-      const sorted = data.sort((a, b) => a.plate.localeCompare(b.plate));
+      const sorted = data.sort((a, b) => (a.prefix || "").localeCompare(b.prefix || ""));
       setVehicles(sorted);
     } catch (error) {
       console.error(error);
@@ -137,8 +137,15 @@ const VehicleManagement = ({ onNotify }) => {
                     key={vehicle.id}
                     className="hover:bg-slate-700/30 transition-colors group"
                   >
-                    <td className="px-6 py-4 font-mono text-emerald-400 font-bold uppercase tracking-widest text-sm">
-                      {vehicle.prefix || vehicle.plate}
+                    <td className="px-6 py-4 font-mono">
+                      <div className="text-emerald-400 font-bold uppercase tracking-widest text-sm">
+                        {vehicle.prefix}
+                      </div>
+                      {vehicle.plate && (
+                        <div className="text-[10px] text-slate-500 font-black">
+                          PLACA: {vehicle.plate}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

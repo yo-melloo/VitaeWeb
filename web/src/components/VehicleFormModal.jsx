@@ -3,6 +3,7 @@ import React, { useState } from "react";
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 const VehicleFormModal = ({ vehicle, onClose, onSave, onNotify }) => {
+  const [prefix, setPrefix] = useState(vehicle ? vehicle.prefix : "");
   const [plate, setPlate] = useState(vehicle ? vehicle.plate : "");
   const [model, setModel] = useState(vehicle ? vehicle.model : "");
   const [capacity, setCapacity] = useState(vehicle ? vehicle.capacity : 44);
@@ -16,6 +17,7 @@ const VehicleFormModal = ({ vehicle, onClose, onSave, onNotify }) => {
     setLoading(true);
 
     const payload = {
+      prefix,
       plate,
       model,
       capacity: parseInt(capacity),
@@ -66,18 +68,33 @@ const VehicleFormModal = ({ vehicle, onClose, onSave, onNotify }) => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
-                  Placa/Prefixo
+                  Prefixo (Obrigatório)
                 </label>
                 <input
                   type="text"
                   required
+                  value={prefix}
+                  onChange={(e) => setPrefix(e.target.value.toUpperCase())}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 font-mono focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                  placeholder="Ex: 5050"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+                  Placa (Opcional)
+                </label>
+                <input
+                  type="text"
                   value={plate}
                   onChange={(e) => setPlate(e.target.value.toUpperCase())}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 font-mono focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                   placeholder="AAA-0000"
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
                   Capacidade
