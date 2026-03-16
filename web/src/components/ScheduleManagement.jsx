@@ -689,6 +689,14 @@ const TripRow = ({
               className={`font-semibold text-sm transition-colors ${isFalta ? "text-rose-400 line-through" : "text-slate-200 group-hover/cell:text-sky-400"}`}
             >
               {trip.driver.name}
+              {trip.hasRestViolation && (
+                <span 
+                  className="ml-2 text-rose-500 animate-pulse inline-block" 
+                  title={trip.violationMessage}
+                >
+                  ⚠️
+                </span>
+              )}
             </p>
             {trip.driver.matricula && (
               <p className="text-[10px] text-slate-500 font-mono">

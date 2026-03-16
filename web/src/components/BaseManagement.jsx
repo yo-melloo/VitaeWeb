@@ -303,23 +303,24 @@ const BaseManagement = ({ onNotify, onEditUser }) => {
                 <span className="font-bold text-slate-500 uppercase tracking-tighter">
                   Equipe:
                 </span>
-                <span className="text-slate-300 truncate">
+                <span className="text-slate-300">
                   {base.users?.length > 0
-                    ? base.users.map((u, i) => (
-                        <button
-                          key={u.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            console.log("Edit user clicked:", u);
-                            onEditUser?.(u);
-                          }}
-                          className="hover:text-sky-400 hover:underline transition-colors"
-                        >
-                          {u.fullName?.split(" ")[0] || "Usuário"}
-                          {i < base.users.length - 1 ? ", " : ""}
-                        </button>
-                      ))
-                    : "Sem usuários"}
+                    ? (() => {
+                        const counts = base.users.reduce((acc, u) => {
+                          const role = u.profile || u.role;
+                          acc[role] = (acc[role] || 0) + 1;
+                          return acc;
+                        }, {});
+                        
+                        const labels = [];
+                        if (counts.ADMIN) labels.push(`${counts.ADMIN} admin${counts.ADMIN > 1 ? "s" : ""}`);
+                        if (counts.OPERATOR) labels.push(`${counts.OPERATOR} op.`);
+                        if (counts.DRIVER) labels.push(`${counts.DRIVER} mot.`);
+                        if (counts.VIEWER) labels.push(`${counts.VIEWER} view`);
+                        
+                        return labels.join(", ") || "Equipe s/ cargo";
+                      })()
+                    : "Sem integrantes"}
                 </span>
               </div>
             </div>

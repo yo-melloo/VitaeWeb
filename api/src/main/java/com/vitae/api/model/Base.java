@@ -31,6 +31,11 @@ public class Base extends BaseAuditEntity {
     @Column(name = "parent_base_id")
     private Long parentBaseId;
 
+    @OneToMany(mappedBy = "base", fetch = FetchType.LAZY)
+    @Builder.Default
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("base")
+    private java.util.List<User> users = new java.util.ArrayList<>();
+
     public enum BaseType {
         OPERACIONAL, PONTO_DE_APOIO
     }

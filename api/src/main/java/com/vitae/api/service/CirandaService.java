@@ -44,12 +44,10 @@ public class CirandaService {
 
             if (lastTrip != null) {
                 currentLoc = lastTrip.getSegment().getDestination();
-                arrivalTime = lastTrip.getActualArrivalTime() != null
+                arrivalTime = (lastTrip.getActualArrivalTime() != null)
                         ? lastTrip.getActualArrivalTime()
                         : lastTrip.getArrivalTime();
 
-                // Verificar se o motorista já trabalhou nesse serviço anteriormente
-                // (preferência para ciclos fixos)
                 if (serviceId != null && serviceId.equals(lastTrip.getServiceId())) {
                     previouslyWorkedOnService = true;
                 }
@@ -58,23 +56,31 @@ public class CirandaService {
                 arrivalTime = LocalDateTime.MIN;
             }
 
-            // 1. Localização e Descanso (11h)
-            if (originName.equalsIgnoreCase(currentLoc)) {
-                long hoursRest = ChronoUnit.HOURS.between(arrivalTime, departureTime);
-                if (hoursRest >= 11 || lastTrip == null) {
+            // 1. Predição de Sequência
+            boolean isSequenced = false;
+            if (serviceId != null) {
+                Long predictedId = predictNextServiceId(driver.getId());
+                if (serviceId.equals(predictedId)) {
+                    isSequenced = true;
+                }
+            }
 
-                    // 2. Regras de Giro (Ciclo de Trabalho)
-                    int cycleDays = calculateCycleDays(driver.getId(), departureTime);
-                    boolean isNight = isNightShift(departureTime);
+            // 2. Descanso (11h base + tempo de deslocamento se necessário)
+            boolean atBase = originName.equalsIgnoreCase(currentLoc);
+            long hoursRest = ChronoUnit.HOURS.between(arrivalTime, departureTime);
 
-                    if (cycleDays >= 7)
-                        continue;
+            if (hoursRest >= 11 || lastTrip == null) {
+                // 3. Regras de Giro (Ciclo de Trabalho)
+                int cycleDays = calculateCycleDays(driver.getId(), departureTime);
+                if (cycleDays >= 7) continue;
 
-                    if (cycleDays == 6 && isNight) {
-                        continue;
-                    }
+                // Prioridade Noturna no Ciclo de 6 dias
+                if (cycleDays == 6 && isNightShift(departureTime)) continue;
 
-                    candidates.add(new DriverCandidate(driver, arrivalTime, previouslyWorkedOnService));
+                // Prioridade:
+                // Se estiver na base OU se for o próximo na sequência (mesmo em outra base)
+                if (atBase || isSequenced) {
+                    candidates.add(new DriverCandidate(driver, arrivalTime, previouslyWorkedOnService || isSequenced));
                 }
             }
         }
@@ -92,6 +98,33 @@ public class CirandaService {
 
     @Autowired
     private com.vitae.api.repository.ServiceRepository serviceRepository;
+
+    private Long predictNextServiceId(Long driverId) {
+        List<com.vitae.api.model.Service> allServices = serviceRepository
+                .findAllByOutOfSequenceFalseOrderByCirandaSequenceAsc();
+        if (allServices.isEmpty()) return null;
+
+        Trip lastFinishedTrip = tripRepository.findByDriverIdAndDepartureTimeBeforeOrderByDepartureTimeDesc(
+                driverId, LocalDateTime.now()).stream()
+                .filter(t -> t.getStatus() == com.vitae.api.model.TripStatus.FINISHED)
+                .findFirst()
+                .orElse(null);
+
+        if (lastFinishedTrip == null) return null;
+        Long lastServiceId = lastFinishedTrip.getServiceId();
+
+        int currentIndex = -1;
+        for (int i = 0; i < allServices.size(); i++) {
+            if (allServices.get(i).getId().equals(lastServiceId)) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        if (currentIndex == -1) return null;
+        int nextIndex = (currentIndex + 1) % allServices.size();
+        return allServices.get(nextIndex).getId();
+    }
 
     public com.vitae.api.dto.DriverSequenceDTO getDriverSequencePrediction(Long driverId) {
         List<com.vitae.api.model.Service> allServices = serviceRepository
@@ -121,29 +154,9 @@ public class CirandaService {
         Long currentServiceId = currentTrip != null ? currentTrip.getServiceId() : null;
         Long lastServiceId = lastFinishedTrip != null ? lastFinishedTrip.getServiceId() : null;
 
-        // Predictive logic: find where we are in Ciranda
-        int currentIndexInCiranda = -1;
-        if (currentServiceId != null) {
-            for (int i = 0; i < allServices.size(); i++) {
-                if (allServices.get(i).getId().equals(currentServiceId)) {
-                    currentIndexInCiranda = i;
-                    break;
-                }
-            }
-        }
-
-        // If not currently on a service, base prediction on last finished service
-        if (currentIndexInCiranda == -1 && lastServiceId != null) {
-            for (int i = 0; i < allServices.size(); i++) {
-                if (allServices.get(i).getId().equals(lastServiceId)) {
-                    currentIndexInCiranda = i;
-                    break;
-                }
-            }
-        }
-
-        int nextIndex = (currentIndexInCiranda + 1) % allServices.size();
-        com.vitae.api.model.Service nextService = allServices.get(nextIndex);
+        Long nextServiceId = predictNextServiceId(driverId);
+        com.vitae.api.model.Service nextService = nextServiceId != null 
+            ? serviceRepository.findById(nextServiceId).orElse(null) : null;
 
         List<com.vitae.api.dto.DriverSequenceDTO.ServiceInfo> currentSequence = new ArrayList<>();
         for (int i = 0; i < allServices.size(); i++) {
@@ -185,6 +198,12 @@ public class CirandaService {
         LocalDateTime lastReference = targetDate;
 
         for (Trip trip : trips) {
+            // Ignora viagens que não representam trabalho efetivo ou presença
+            if (trip.getStatus() == com.vitae.api.model.TripStatus.CANCELLED || 
+                trip.getStatus() == com.vitae.api.model.TripStatus.FALTA) {
+                continue;
+            }
+
             LocalDateTime departure = trip.getDepartureTime();
             LocalDateTime arrival = (trip.getActualArrivalTime() != null) ? trip.getActualArrivalTime()
                     : (trip.getArrivalTime() != null ? trip.getArrivalTime() : trip.getDepartureTime());

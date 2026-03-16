@@ -132,6 +132,15 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null, user }) => {
       });
     }
 
+    // 2. Rendição Solo (5.5h)
+    if (!formData.secondaryDriverId && segment?.estimatedDurationMinutes > 330) {
+      newAlerts.push({
+        type: "danger",
+        title: "⛔ Limite Solo Excedido (5.5h)",
+        message: `Este trecho tem duração estimada de ${Math.round(segment.estimatedDurationMinutes / 60)}h. Viagens solo não podem ultrapassar 5h30 de direção contínua.`,
+      });
+    }
+
     if (
       !formData.driverId ||
       !formData.departureDate ||
@@ -150,12 +159,12 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null, user }) => {
       `${formData.departureDate}T${formData.departureTime}`,
     );
 
-    // 1. Dobra check (saldo > 7 dias)
-    if (driver.saldoDias != null && driver.saldoDias > 7) {
+    // 1. Dobra check (saldo >= 6 dias significa que a próxima é a 7ª)
+    if (driver.saldoDias != null && driver.saldoDias >= 6) {
       newAlerts.push({
         type: "warning",
         title: "⚠️ Alerta de DOBRA",
-        message: `${driver.name} possui ${driver.saldoDias} dias de saldo. Esta viagem será calculada como Hora Extra 100%.`,
+        message: `${driver.name} possui ${driver.saldoDias} dias acumulados no ciclo. Esta viagem será o seu 7º dia seguido, sendo calculada como Hora Extra 100%.`,
       });
     }
 
@@ -389,14 +398,22 @@ const TripForm = ({ onCancel, onSave, onNotify, initialData = null, user }) => {
                     ? "Selecione o trecho..."
                     : "Selecione o serviço primeiro"}
               </option>
-              {segments.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.origin} → {s.destination}
-                  {s.estimatedDurationMinutes
-                    ? ` (~${Math.round(s.estimatedDurationMinutes / 60)}h)`
-                    : ""}
-                </option>
-              ))}
+              {segments
+                .filter((s) => {
+                  if (user?.role === "ADMIN" || user?.profile === "ADMIN") return true;
+                  const segmentBaseId = s.base?.id;
+                  const userBaseId = user?.base?.id;
+                  if (!segmentBaseId || !userBaseId) return true;
+                  return segmentBaseId == userBaseId || s.base?.parentBaseId == userBaseId;
+                })
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.origin} → {s.destination}
+                    {s.estimatedDurationMinutes
+                      ? ` (~${Math.round(s.estimatedDurationMinutes / 60)}h)`
+                      : ""}
+                  </option>
+                ))}
             </select>
           </div>
         </div>

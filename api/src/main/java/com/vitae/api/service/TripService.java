@@ -291,6 +291,20 @@ public class TripService {
             });
         }
 
+        // 2. Rendição Solo (5.5h)
+        if (trip.getSecondaryDriver() == null && trip.getSegment() != null) {
+            Integer duration = trip.getSegment().getEstimatedDurationMinutes();
+            if (duration != null && duration > 330) {
+                trip.setHasRestViolation(true);
+                String msg = "Viagem Solo EXCEDEU 5.5h: Necessário Dupla ou Rendição.";
+                if (trip.getViolationMessage() == null) {
+                    trip.setViolationMessage(msg);
+                } else if (!trip.getViolationMessage().contains("Viagem Solo")) {
+                    trip.setViolationMessage(trip.getViolationMessage() + " | " + msg);
+                }
+            }
+        }
+
         if (driver != null) {
             // 2. Lógica de Dobra (Ciclo de 7 dias)
             int cycleDays = cirandaService.calculateCycleDays(driver.getId(), trip.getDepartureTime());
@@ -394,14 +408,24 @@ public class TripService {
         });
     }
 
+    @Transactional
     public Trip cancelTrip(Long tripId) {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found"));
         trip.setStatus(TripStatus.CANCELLED);
+        
         if (trip.getDriver() != null) {
             trip.getDriver().setStatus(DriverStatus.DISPONIVEL);
             driverRepository.save(trip.getDriver());
+            refreshDriverSaldo(trip.getDriver().getId());
         }
+        
+        if (trip.getSecondaryDriver() != null) {
+            trip.getSecondaryDriver().setStatus(DriverStatus.DISPONIVEL);
+            driverRepository.save(trip.getSecondaryDriver());
+            refreshDriverSaldo(trip.getSecondaryDriver().getId());
+        }
+        
         return tripRepository.save(trip);
     }
 
