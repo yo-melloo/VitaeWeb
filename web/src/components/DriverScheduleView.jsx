@@ -11,6 +11,8 @@ const mapTripFromApi = (trip) => ({
   vehicle:
     trip.vehicle?.prefix || trip.vehicle?.plate || trip.vehicle?.id || null,
   isDobra: trip.isDobra,
+  serviceCode: trip.serviceCode,
+  routeName: trip.routeName,
 });
 
 const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
@@ -40,6 +42,9 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
           name: driver.name,
           matricula: driver.matricula,
           base: driver.base?.name || "",
+          saldoDias: driver.saldoDias || 0,
+          status: driver.status,
+          lastStatusChange: driver.lastStatusChange
         }));
         setDrivers(normalized);
       } catch (error) {
@@ -70,15 +75,27 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
   }, [isDriver, user, drivers]);
 
   const handleDriverChange = async (id) => {
-    const driver = drivers.find((d) => d.id === id);
-    setSelectedDriver(driver || null);
-
     if (!id) {
+      setSelectedDriver(null);
       setTrips([]);
+      setSequenceData(null);
       return;
     }
 
     try {
+      // 1. Fetch full driver record (to get latest saldoDias and status)
+      const drvResponse = await fetch(
+        `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/drivers/${id}`,
+      );
+      if (!drvResponse.ok) throw new Error("Erro ao carregar dados do motorista");
+      const driverData = await drvResponse.json();
+      
+      setSelectedDriver({
+        ...driverData,
+        base: driverData.base?.name || "N/A"
+      });
+
+      // 2. Fetch trips
       const response = await fetch(
         `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/trips?driverId=${id}`,
       );
@@ -88,7 +105,7 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
       const data = await response.json();
       setTrips(data.map(mapTripFromApi));
 
-      // Fetch sequence prediction
+      // 3. Fetch sequence prediction
       const seqResponse = await fetch(
         `${import.meta.env.VITE_API_URL ?? "http://localhost:8080"}/api/drivers/${id}/predict-sequence`,
       );
@@ -121,6 +138,9 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
       );
       setEditingTripId(null);
       onNotify?.("Chegada confirmada!");
+      
+      // Refresh driver data to show new saldoDias
+      if (selectedDriver) handleDriverChange(selectedDriver.id);
     } catch (error) {
       console.error(error);
       onNotify?.("Erro ao atualizar chegada: " + error.message, "error");
@@ -140,6 +160,9 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
         prev.map((t) => (t.id === tripId ? { ...t, ...mapped } : t)),
       );
       onNotify?.("Escala atualizada!");
+
+      // Refresh driver data to show new saldoDias/status
+      if (selectedDriver) handleDriverChange(selectedDriver.id);
     } catch (error) {
       onNotify?.("Erro: " + error.message, "error");
     }
@@ -162,6 +185,9 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
         prev.map((t) => (t.id === tripId ? { ...t, ...mapped } : t)),
       );
       onNotify?.("Viagem iniciada! Tenha uma excelente jornada.");
+
+      // Refresh driver data
+      if (selectedDriver) handleDriverChange(selectedDriver.id);
     } catch (error) {
       onNotify?.("Erro: " + error.message, "error");
     }
@@ -186,6 +212,9 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
       onNotify?.(
         isClearing ? "Falta removida" : "Falta registrada com sucesso",
       );
+
+      // Refresh driver data
+      if (selectedDriver) handleDriverChange(selectedDriver.id);
     } catch (error) {
       console.error(error);
       onNotify?.("Erro ao registrar falta: " + error.message, "error");
@@ -219,20 +248,23 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
     });
 
     // Identify gaps > 36h BEFORE grouping but AFTER sorting (global context)
-    // We need the full sorted list to find gaps between any two trips
-    const allSorted = [...tripsToGroup].sort((a, b) => {
-      const dateA = new Date(a.departure).getTime();
-      const dateB = new Date(b.departure).getTime();
-      return dateA - dateB; // Always ASC for gap calculation
-    });
+    // We filter out trips that didn't happen to get real gaps
+    const allSorted = [...tripsToGroup]
+      .filter((t) => t.status !== "CANCELLED" && t.status !== "FALTA")
+      .sort((a, b) => {
+        const dateA = new Date(a.departure).getTime();
+        const dateB = new Date(b.departure).getTime();
+        return dateA - dateB; // Always ASC for gap calculation
+      });
 
     const tripsWithGaps = sorted.map((trip) => {
       const globalIdx = allSorted.findIndex((t) => t.id === trip.id);
       let restInfo = null;
-      if (globalIdx !== -1 && globalIdx < allSorted.length - 1) {
+      const arrivalDate = trip.actualArrival || trip.arrival;
+      if (globalIdx !== -1 && globalIdx < allSorted.length - 1 && arrivalDate) {
         const nextTrip = allSorted[globalIdx + 1];
         const restHours = getRestHours(
-          trip.actualArrival || trip.arrival,
+          arrivalDate,
           nextTrip.departure,
         );
         if (restHours >= 36) {
@@ -366,6 +398,18 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
                 <span className="text-slate-200 font-medium">
                   {selectedDriver.base}
                 </span>
+              </div>
+
+              <div className="p-4 bg-slate-900/60 rounded-2xl border border-slate-700/50 flex justify-between items-center group/saldo hover:border-sky-500/30 transition-all">
+                <div>
+                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Saldo Auditoria</p>
+                  <p className={`text-2xl font-black ${selectedDriver.saldoDias > 7 ? 'text-amber-400' : 'text-slate-200'}`}>
+                    {selectedDriver.saldoDias} <span className="text-xs text-slate-500 font-normal">DIAS TRAB.</span>
+                  </p>
+                </div>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${selectedDriver.saldoDias > 7 ? 'bg-amber-500/10 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'bg-slate-800 text-slate-600'}`}>
+                  {selectedDriver.saldoDias > 7 ? '⚠️' : '📊'}
+                </div>
               </div>
 
               <div className="space-y-3 pt-2">
@@ -519,58 +563,65 @@ const DriverScheduleView = ({ isDriver, user, initialDriverId, onNotify }) => {
                             className={`bg-slate-800 border rounded-2xl p-5 transition-all hover:bg-slate-700/40 ${trip.status === "FALTA" ? "border-rose-500/50 bg-rose-950/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]" : trip.isDobra ? "border-amber-500/30" : "border-slate-700"}`}
                           >
                             <div className="flex justify-between items-start mb-4">
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl font-bold text-slate-100">
-                                  {new Date(trip.departure).toLocaleTimeString(
-                                    [],
-                                    {
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-2xl font-bold text-slate-100">
+                                    {new Date(trip.departure).toLocaleTimeString([], {
                                       hour: "2-digit",
                                       minute: "2-digit",
-                                    },
-                                  )}
-                                </span>
-                                <span className="text-slate-400 text-sm">
-                                  {new Date(trip.departure).toLocaleDateString(
-                                    "pt-BR",
-                                    { day: "2-digit", month: "short" },
-                                  )}
-                                </span>
+                                    })}
+                                  </span>
+                                  <span className="text-slate-400 text-sm">
+                                    {new Date(trip.departure).toLocaleDateString("pt-BR", {
+                                      day: "2-digit",
+                                      month: "short",
+                                    })}
+                                  </span>
+                                </div>
+                                {trip.serviceCode && (
+                                  <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest mt-1 italic">
+                                    SVC {trip.serviceCode} — {trip.routeName}
+                                  </span>
+                                )}
                               </div>
-                              {trip.status === "FINISHED" && (
-                                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase rounded border border-emerald-500/20">
-                                  Finalizada
-                                </span>
-                              )}
-                              {trip.status === "SCHEDULED" && (
-                                <span className="px-2 py-1 bg-slate-700/50 text-slate-400 text-[9px] font-black uppercase rounded border border-slate-700/80">
-                                  Agendada
-                                </span>
-                              )}
-                              {trip.status === "IN_PROGRESS" && (
-                                <span className="px-2 py-1 bg-sky-500/10 text-sky-400 text-[9px] font-black uppercase rounded border border-sky-500/20">
-                                  Em Andamento
-                                </span>
-                              )}
-                              {trip.status === "DELAYED" && (
-                                <span className="px-2 py-1 bg-amber-500/10 text-amber-400 text-[9px] font-black uppercase rounded border border-amber-500/20">
-                                  Atrasada
-                                </span>
-                              )}
-                              {trip.status === "CANCELLED" && (
-                                <span className="px-2 py-1 bg-rose-500/10 text-rose-400 text-[9px] font-black uppercase rounded border border-rose-500/20">
-                                  Cancelada
-                                </span>
-                              )}
-                              {trip.status === "PASSE" && (
-                                <span className="px-2 py-1 bg-slate-500/10 text-slate-400 text-[9px] font-black uppercase rounded border border-slate-500/20">
-                                  Passe
-                                </span>
-                              )}
-                              {trip.status === "FALTA" && (
-                                <span className="px-2 py-1 bg-rose-500/10 text-rose-400 text-[9px] font-black uppercase rounded border border-rose-500/20">
-                                  Falta (No-Show)
-                                </span>
-                              )}
+
+                              <div className="flex items-center gap-2">
+                                {trip.status === "FINISHED" && (
+                                  <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase rounded border border-emerald-500/20">
+                                    Finalizada
+                                  </span>
+                                )}
+                                {trip.status === "SCHEDULED" && (
+                                  <span className="px-2 py-1 bg-slate-700/50 text-slate-400 text-[9px] font-black uppercase rounded border border-slate-700/80">
+                                    Agendada
+                                  </span>
+                                )}
+                                {trip.status === "IN_PROGRESS" && (
+                                  <span className="px-2 py-1 bg-sky-500/10 text-sky-400 text-[9px] font-black uppercase rounded border border-sky-500/20">
+                                    Em Andamento
+                                  </span>
+                                )}
+                                {trip.status === "DELAYED" && (
+                                  <span className="px-2 py-1 bg-amber-500/10 text-amber-400 text-[9px] font-black uppercase rounded border border-amber-500/20">
+                                    Atrasada
+                                  </span>
+                                )}
+                                {trip.status === "CANCELLED" && (
+                                  <span className="px-2 py-1 bg-rose-500/10 text-rose-400 text-[9px] font-black uppercase rounded border border-rose-500/20">
+                                    Cancelada
+                                  </span>
+                                )}
+                                {trip.status === "PASSE" && (
+                                  <span className="px-2 py-1 bg-slate-500/10 text-slate-400 text-[9px] font-black uppercase rounded border border-slate-500/20">
+                                    Passe
+                                  </span>
+                                )}
+                                {trip.status === "FALTA" && (
+                                  <span className="px-2 py-1 bg-rose-500/10 text-rose-400 text-[9px] font-black uppercase rounded border border-rose-500/20">
+                                    Falta (No-Show)
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
                             <div className="flex items-center gap-4 text-slate-300">
