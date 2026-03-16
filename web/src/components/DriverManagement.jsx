@@ -134,9 +134,11 @@ const DriverManagement = ({ onNotify, onSelectDriver }) => {
       );
       if (!res.ok) throw new Error("Erro ao atualizar status");
 
+      const updatedFromServer = await res.json();
+      
       setDrivers((prev) =>
         prev.map((d) =>
-          d.id === driver.id ? { ...d, status: nextStatus } : d,
+          d.id === driver.id ? { ...d, ...updatedFromServer, baseName: updatedFromServer.base?.name } : d,
         ),
       );
       onNotify?.("Status alterado para " + nextStatus);

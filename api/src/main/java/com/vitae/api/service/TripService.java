@@ -33,8 +33,36 @@ public class TripService {
     private com.vitae.api.repository.ServiceRepository serviceRepository;
 
     public Trip createTrip(Trip trip) {
+        if (trip.getArrivalTime() == null && trip.getDepartureTime() != null && trip.getSegment() != null) {
+            Integer duration = trip.getSegment().getEstimatedDurationMinutes();
+            trip.setArrivalTime(trip.getDepartureTime().plusMinutes(duration != null ? duration : 0));
+        }
         validateBusinessRules(trip);
-        return tripRepository.save(trip);
+        Trip saved = tripRepository.saveAndFlush(trip);
+        
+        // Atualiza saldo do motorista imediatamente para refletir na UI
+        // Usamos uma data futura para capturar o saldo projetado de todas as escalas agendadas
+        if (saved.getDriver() != null) {
+            refreshDriverSaldo(saved.getDriver().getId());
+        }
+        if (saved.getSecondaryDriver() != null) {
+            refreshDriverSaldo(saved.getSecondaryDriver().getId());
+        }
+        
+        return saved;
+    }
+
+    private void refreshDriverSaldo(Long driverId) {
+        driverRepository.findById(driverId).ifPresent(driver -> {
+            // Busca a viagem mais distante no futuro para calcular o saldo acumulado total
+            LocalDateTime referenceDate = tripRepository.findFirstByDriverIdOrderByDepartureTimeDesc(driverId) != null
+                ? tripRepository.findFirstByDriverIdOrderByDepartureTimeDesc(driverId).getDepartureTime().plusDays(1)
+                : LocalDateTime.now().plusNanos(1);
+
+            int saldo = cirandaService.calculateCycleDays(driverId, referenceDate);
+            driver.setSaldoDias(saldo);
+            driverRepository.save(driver);
+        });
     }
 
     @Transactional
@@ -198,7 +226,10 @@ public class TripService {
             trip.getVehicle().setStatus(com.vitae.api.model.Vehicle.VehicleStatus.AVAILABLE);
             vehicleRepository.save(trip.getVehicle());
         }
-        return tripRepository.save(trip);
+        
+        Trip saved = tripRepository.saveAndFlush(trip);
+        if (saved.getDriver() != null) refreshDriverSaldo(saved.getDriver().getId());
+        return saved;
     }
 
     @Transactional
@@ -335,13 +366,32 @@ public class TripService {
         if (tripUpdate.getStatus() != null)
             trip.setStatus(tripUpdate.getStatus());
 
+        if (trip.getArrivalTime() == null && trip.getDepartureTime() != null && trip.getSegment() != null) {
+            Integer duration = trip.getSegment().getEstimatedDurationMinutes();
+            trip.setArrivalTime(trip.getDepartureTime().plusMinutes(duration != null ? duration : 0));
+        }
+
         validateBusinessRules(trip);
-        return tripRepository.save(trip);
+        Trip saved = tripRepository.saveAndFlush(trip);
+
+        if (saved.getDriver() != null) refreshDriverSaldo(saved.getDriver().getId());
+        if (saved.getSecondaryDriver() != null) refreshDriverSaldo(saved.getSecondaryDriver().getId());
+
+        return saved;
     }
 
     @Transactional
     public void deleteTrip(Long id) {
-        tripRepository.deleteById(id);
+        tripRepository.findById(id).ifPresent(trip -> {
+            Long d1 = trip.getDriver() != null ? trip.getDriver().getId() : null;
+            Long d2 = trip.getSecondaryDriver() != null ? trip.getSecondaryDriver().getId() : null;
+            
+            tripRepository.delete(trip);
+            
+            // Recalcula após deletar
+            if (d1 != null) refreshDriverSaldo(d1);
+            if (d2 != null) refreshDriverSaldo(d2);
+        });
     }
 
     public Trip cancelTrip(Long tripId) {
