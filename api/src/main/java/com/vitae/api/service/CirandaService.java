@@ -208,9 +208,12 @@ public class CirandaService {
             LocalDateTime arrival = (trip.getActualArrivalTime() != null) ? trip.getActualArrivalTime()
                     : (trip.getArrivalTime() != null ? trip.getArrivalTime() : trip.getDepartureTime());
 
+            // Garantia de segurança (mesmo que a lógica acima já garanta não-nulo via fallback para departure)
+            if (arrival == null) arrival = departure;
+
             // Se houve um gap de 36h entre esta viagem e a próxima (na cronologia), o ciclo
             // resetou.
-            if (arrival != null && ChronoUnit.HOURS.between(arrival, lastReference) >= 36) {
+            if (ChronoUnit.HOURS.between(arrival, lastReference) >= 36) {
                 break;
             }
 

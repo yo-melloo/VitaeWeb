@@ -39,6 +39,9 @@ public class User extends BaseAuditEntity {
     @JoinColumn(name = "base_id")
     private Base base;
 
+    @Builder.Default
+    private String theme = "dark";
+
     public enum UserProfile {
         ADMIN, OPERATOR, VIEWER, DRIVER, PENDING
     }

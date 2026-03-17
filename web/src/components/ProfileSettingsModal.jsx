@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const ProfileSettingsModal = ({ user, onClose, onUpdate, onNotify }) => {
+const ProfileSettingsModal = ({ user, onClose, onUpdate, onNotify, theme, setTheme }) => {
   const [fullName, setFullName] = useState(user.fullName || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -21,7 +21,7 @@ const ProfileSettingsModal = ({ user, onClose, onUpdate, onNotify }) => {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fullName }),
+          body: JSON.stringify({ fullName, theme }),
         },
       );
 
@@ -85,7 +85,6 @@ const ProfileSettingsModal = ({ user, onClose, onUpdate, onNotify }) => {
               placeholder="Ex: João da Silva"
             />
           </div>
-
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 text-left block">
               Perfil / Cargo
@@ -95,6 +94,36 @@ const ProfileSettingsModal = ({ user, onClose, onUpdate, onNotify }) => {
               <span className="text-xs font-bold uppercase tracking-tight">
                 {user.role}
               </span>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 text-left block">
+              Preferências de Interface
+            </label>
+            <div className="flex items-center justify-between p-4 bg-slate-900/30 border border-slate-700/50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{theme === "dark" ? "🌙" : "☀️"}</span>
+                <div>
+                  <p className="text-sm font-bold text-slate-200">
+                    {theme === "dark" ? "Tema Escuro" : "Tema Claro"}
+                  </p>
+                  <p className="text-[10px] text-slate-500 uppercase font-black">
+                    Ajuste o contraste visual
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                  theme === "dark"
+                    ? "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                    : "bg-sky-500 text-white hover:bg-sky-400"
+                }`}
+              >
+                Alternar para {theme === "dark" ? "Claro" : "Escuro"}
+              </button>
             </div>
           </div>
 

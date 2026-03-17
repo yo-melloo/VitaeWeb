@@ -106,7 +106,8 @@ public class UserController {
     @PutMapping("/{id}/profile-name")
     public ResponseEntity<User> updateProfileName(@PathVariable Long id, @RequestBody User userDetails) {
         return userRepository.findById(id).map(user -> {
-            user.setFullName(userDetails.getFullName());
+            if (userDetails.getFullName() != null) user.setFullName(userDetails.getFullName());
+            if (userDetails.getTheme() != null) user.setTheme(userDetails.getTheme());
             return ResponseEntity.ok(userRepository.save(user));
         }).orElse(ResponseEntity.notFound().build());
     }
