@@ -12,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "drivers" })
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Base extends BaseAuditEntity {
 
     @Id
@@ -35,6 +35,11 @@ public class Base extends BaseAuditEntity {
     @Builder.Default
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties("base")
     private java.util.List<User> users = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "base", fetch = FetchType.LAZY)
+    @Builder.Default
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("base")
+    private java.util.List<Driver> drivers = new java.util.ArrayList<>();
 
     public enum BaseType {
         OPERACIONAL, PONTO_DE_APOIO

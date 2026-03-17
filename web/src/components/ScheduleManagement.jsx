@@ -386,14 +386,28 @@ const ScheduleManagement = ({ isOperator, onNotify, onSelectDriver, user }) => {
             Gerenciamento de todas as viagens
           </p>
         </div>
-        {isOperator && (
+        <div className="flex gap-3">
           <button
-            onClick={() => setShowModal(true)}
-            className="bg-sky-500 hover:bg-sky-400 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-sky-500/20 transition-all active:scale-95"
+            onClick={() => window.open(`${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/exports/trips/csv`, "_blank")}
+            className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2.5 rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-2"
           >
-            + Nova Escala
+            <span>📄</span> CSV
           </button>
-        )}
+          <button
+            onClick={() => window.open(`${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/exports/trips/excel`, "_blank")}
+            className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2.5 rounded-xl font-semibold transition-all active:scale-95 flex items-center gap-2"
+          >
+            <span>📊</span> Excel
+          </button>
+          {isOperator && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-sky-500 hover:bg-sky-400 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-sky-500/20 transition-all active:scale-95"
+            >
+              + Nova Escala
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Filters & Date Switcher */}
@@ -415,7 +429,15 @@ const ScheduleManagement = ({ isOperator, onNotify, onSelectDriver, user }) => {
             >
               ←
             </button>
-            <div className="px-4 py-1.5 text-center min-w-[140px]">
+            <div 
+              onClick={() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                setCurrentDate(today);
+              }}
+              className="px-4 py-1.5 text-center min-w-[140px] cursor-pointer hover:bg-slate-800 rounded-lg transition-colors"
+              title="Voltar para Hoje"
+            >
               <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest leading-none mb-1">
                 Data Visualizada
               </p>
@@ -480,11 +502,13 @@ const ScheduleManagement = ({ isOperator, onNotify, onSelectDriver, user }) => {
             className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 text-sm outline-none focus:ring-2 focus:ring-sky-500 transition-all font-bold"
           >
             <option value="">Todas as Bases</option>
-            {bases.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
+            {bases
+              .filter((b) => b.type === "OPERACIONAL")
+              .map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
           </select>
         </div>
 

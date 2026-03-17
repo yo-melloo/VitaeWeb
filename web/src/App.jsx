@@ -72,9 +72,9 @@ const Sidebar = ({
   const isOperator = user.role === "OPERATOR" || isAdmin;
   const isDriver = user.role === "DRIVER";
 
-  const handleNavClick = (tab) => {
+  const handleNavClick = (tab, shouldClose = true) => {
     setActiveTab(tab);
-    if (onClose) onClose();
+    if (shouldClose && onClose) onClose();
   };
 
   return (
@@ -149,7 +149,7 @@ const Sidebar = ({
                 icon="🛣️"
                 label="Rotas"
                 active={activeTab === "routes" || activeTab === "sequence"}
-                onClick={() => handleNavClick("routes")}
+                onClick={() => handleNavClick("routes", false)}
               />
               <div
                 className={`grid transition-all duration-300 ease-in-out ${
@@ -164,13 +164,13 @@ const Sidebar = ({
                       label="Gerenciar"
                       small
                       active={activeTab === "routes"}
-                      onClick={() => handleNavClick("routes")}
+                      onClick={() => handleNavClick("routes", true)}
                     />
                     <NavItem
                       label="Sequência"
                       small
                       active={activeTab === "sequence"}
-                      onClick={() => handleNavClick("sequence")}
+                      onClick={() => handleNavClick("sequence", true)}
                       badge="BETA"
                     />
                   </div>
@@ -204,14 +204,16 @@ const Sidebar = ({
               active={
                 activeTab === "trips" ||
                 activeTab === "reports" ||
+                activeTab === "dobras" ||
                 activeTab === "new-trip"
               }
-              onClick={() => handleNavClick(isDriver ? "reports" : "trips")}
+              onClick={() => handleNavClick(isDriver ? "reports" : "trips", isDriver)}
             />
             <div
               className={`grid transition-all duration-300 ease-in-out ${
                 activeTab === "trips" ||
                 activeTab === "reports" ||
+                activeTab === "dobras" ||
                 activeTab === "new-trip"
                   ? "grid-rows-[1fr] opacity-100"
                   : "grid-rows-[0fr] opacity-0 pointer-events-none"
@@ -223,27 +225,27 @@ const Sidebar = ({
                       label="Visão Geral"
                       small
                       active={activeTab === "trips"}
-                      onClick={() => handleNavClick("trips")}
+                      onClick={() => handleNavClick("trips", true)}
                     />
                     <NavItem
                       label="Dobras"
                       small
                       active={activeTab === "dobras"}
-                      onClick={() => handleNavClick("dobras")}
+                      onClick={() => handleNavClick("dobras", true)}
                       badge="NOVO"
                     />
                   <NavItem
                     label="Relatórios"
                     small
                     active={activeTab === "reports"}
-                    onClick={() => handleNavClick("reports")}
+                    onClick={() => handleNavClick("reports", true)}
                   />
                   {isOperator && (
                     <NavItem
                       label="Nova Escala"
                       small
                       active={activeTab === "new-trip"}
-                      onClick={() => handleNavClick("new-trip")}
+                      onClick={() => handleNavClick("new-trip", true)}
                     />
                   )}
                 </div>
@@ -875,6 +877,19 @@ const ErrorDetailModal = ({ segment, onClose }) => {
 };
 
 const App = () => {
+  const [theme, setTheme] = useState(() => {
+    try {
+      return window.localStorage.getItem("vitae:theme") || "dark";
+    } catch {
+      return "dark";
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    window.localStorage.setItem("vitae:theme", theme);
+  }, [theme]);
+
   const [activeTab, setActiveTab] = useState(() => {
     try {
       return window.localStorage.getItem("vitae:app:activeTab") || "dashboard";
@@ -1153,6 +1168,8 @@ const App = () => {
       {profileModalOpen && (
         <ProfileSettingsModal
           user={user}
+          theme={theme}
+          setTheme={setTheme}
           onClose={() => setProfileModalOpen(false)}
           onNotify={notify}
           onUpdate={(updatedUser) => {

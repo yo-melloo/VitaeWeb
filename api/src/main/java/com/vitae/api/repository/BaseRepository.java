@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface BaseRepository extends JpaRepository<Base, Long> {
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = { "users" })
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = { "users", "drivers" })
     java.util.List<Base> findAll();
 
     java.util.Optional<Base> findByName(String name);

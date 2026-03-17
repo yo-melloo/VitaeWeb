@@ -304,21 +304,21 @@ const BaseManagement = ({ onNotify, onEditUser }) => {
                   Equipe:
                 </span>
                 <span className="text-slate-300">
-                  {base.users?.length > 0
+                  {base.users?.length > 0 || base.drivers?.length > 0
                     ? (() => {
-                        const counts = base.users.reduce((acc, u) => {
+                        const counts = base.users?.reduce((acc, u) => {
                           const role = u.profile || u.role;
                           acc[role] = (acc[role] || 0) + 1;
                           return acc;
-                        }, {});
+                        }, {}) || {};
                         
                         const labels = [];
                         if (counts.ADMIN) labels.push(`${counts.ADMIN} admin${counts.ADMIN > 1 ? "s" : ""}`);
                         if (counts.OPERATOR) labels.push(`${counts.OPERATOR} op.`);
-                        if (counts.DRIVER) labels.push(`${counts.DRIVER} mot.`);
+                        if (base.drivers?.length > 0) labels.push(`${base.drivers.length} mot.`);
                         if (counts.VIEWER) labels.push(`${counts.VIEWER} view`);
                         
-                        return labels.join(", ") || "Equipe s/ cargo";
+                        return labels.join(", ") || "Equipe configurada";
                       })()
                     : "Sem integrantes"}
                 </span>
