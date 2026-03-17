@@ -11,17 +11,37 @@
   --color-primary-700: #0369a1;
   --color-primary-800: #075985;
   --color-primary-900: #0c4a6e;
+
+  /* Map Tailwind slate colors to CSS variables */
+  --color-slate-50: var(--slate-50);
+  --color-slate-100: var(--slate-100);
+  --color-slate-200: var(--slate-200);
+  --color-slate-300: var(--slate-300);
+  --color-slate-400: var(--slate-400);
+  --color-slate-500: var(--slate-500);
+  --color-slate-600: var(--slate-600);
+  --color-slate-700: var(--slate-700);
+  --color-slate-800: var(--slate-800);
+  --color-slate-900: var(--slate-900);
+  --color-slate-950: var(--slate-950);
 }
 
 :root {
-  --bg-main: #0f172a; /* slate-950/900 area */
-  --bg-card: #1e293b; /* slate-800 */
-  --bg-sidebar: #1e293b;
-  --bg-input: #0f172a;
-  --text-main: #f1f5f9; /* slate-100 */
-  --text-dim: #cbd5e1;  /* slate-300 */
-  --text-muted: #94a3b8; /* slate-400 */
-  --border-color: #334155; /* slate-700 */
+  /* Semantic Variables Mapped to Slate in Dark Mode */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+
+  --bg-main: var(--slate-950);
+  --text-main: var(--slate-100);
   
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -38,14 +58,21 @@
 }
 
 [data-theme="light"] {
-  --bg-main: #f1f5f9; /* slate-100 */
-  --bg-card: #ffffff;
-  --bg-sidebar: #ffffff;
-  --bg-input: #f8fafc;
-  --text-main: #0f172a; /* slate-900 */
-  --text-dim: #334155;
-  --text-muted: #64748b;
-  --border-color: #e2e8f0; /* slate-200 */
+  /* High Contrast Slate mapping for Light Mode Accessibility */
+  --slate-950: #f1f5f9; /* Extra light background */
+  --slate-900: #e2e8f0; /* Inputs / Hover light */
+  --slate-800: #ffffff; /* Card backgrounds */
+  --slate-700: #cbd5e1; /* Borders */
+  --slate-600: #475569; /* Was too light, now darker */
+  --slate-500: #334155; /* Secondary text - improved contrast */
+  --slate-400: #1e293b; /* Dim text - high contrast */
+  --slate-300: #0f172a; /* Strong text */
+  --slate-200: #020617; /* Strongest text */
+  --slate-100: #000000; /* Pure black for primary labels */
+  --slate-50:  #000000;
+
+  --bg-main: var(--slate-950);
+  --text-main: var(--slate-100);
   color-scheme: light;
 }
 

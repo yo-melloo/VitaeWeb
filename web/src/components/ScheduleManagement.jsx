@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import TripForm from "./TripForm";
 
 const formatDate = (dateString) => {
-  if (!dateString) return "";
-  return new Date(dateString + "T00:00:00").toLocaleDateString("pt-BR", {
+  if (!dateString || dateString === "[object Object]") return "Data não definida";
+  const d = new Date(dateString + "T12:00:00");
+  if (isNaN(d.getTime())) return "Data inválida";
+  return d.toLocaleDateString("pt-BR", {
     weekday: "short",
     day: "2-digit",
     month: "2-digit",
@@ -160,7 +162,7 @@ const ScheduleManagement = ({ isOperator, onNotify, onSelectDriver, user }) => {
   const [currentDate, setCurrentDate] = useState(() => {
     try {
       const stored = window.localStorage.getItem("vitae:schedule:currentDate");
-      if (stored) return stored;
+      if (stored && stored !== "[object Object]") return stored;
     } catch {}
     const today = new Date();
     return today.toISOString().split("T")[0];
@@ -432,8 +434,7 @@ const ScheduleManagement = ({ isOperator, onNotify, onSelectDriver, user }) => {
             <div 
               onClick={() => {
                 const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                setCurrentDate(today);
+                setCurrentDate(today.toISOString().split("T")[0]);
               }}
               className="px-4 py-1.5 text-center min-w-[140px] cursor-pointer hover:bg-slate-800 rounded-lg transition-colors"
               title="Voltar para Hoje"
